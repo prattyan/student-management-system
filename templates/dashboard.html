@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="container text-center mt-5">
+    <h1 class="display-4 text-primary mb-4">Welcome, {{ student.name }}!</h1>
+    <p class="lead text-muted">Manage your profile and view your progress below.</p>
+
+    <!-- Real-Time Date and Time -->
+    <div class="mb-4">
+        <h5 class="text-secondary">Current Date and Time:</h5>
+        <h4 id="current-time" class="text-primary"></h4>
+    </div>
+
+    <!-- Notifications -->
+    {% if notifications %}
+    <div class="alert alert-warning">
+        <ul>
+            {% for notification in notifications %}
+            <li>{{ notification }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Profile Picture -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8">
+            <div class="card shadow-lg">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename='uploads/' + student.profile_pic) }}" 
+                         alt="Profile Picture" 
+                         class="img-thumbnail rounded-circle mb-3" 
+                         style="width: 150px; height: 150px;">
+                    <h5 class="card-title">{{ student.name }}</h5>
+                    <p class="text-muted">{{ student.email }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Details Button -->
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <a href="{{ url_for('student_details') }}" class="btn btn-primary w-100 mb-3">View Profile</a>
+        </div>
+        <div class="col-md-4">
+            <a href="{{ url_for('attendance') }}" class="btn btn-secondary w-100 mb-3">View Attendance</a>
+        </div>
+        <div class="col-md-4">
+            <a href="{{ url_for('view_marks') }}" class="btn btn-success w-100 mb-3">View Marks</a>
+        </div>
+        <div class="col-md-4">
+            <a href="{{ url_for('change_password') }}" class="btn btn-warning w-100">Change Password</a>
+        </div>
+    </div>
+
+</div>
+
+<!-- JavaScript to Update Time -->
+<script>
+    function updateTime() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        document.getElementById('current-time').textContent = now.toLocaleDateString('en-US', options);
+    }
+
+    // Update time every second
+    setInterval(updateTime, 1000);
+    updateTime(); // Call immediately to display time on page load
+</script>
+{% endblock %}
+

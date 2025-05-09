@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Update Attendance{% endblock %}
+{% block content %}
+<div class="container">
+    <h2 class="text-center">Update Attendance for {{ student.name }}</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="total_classes" class="form-label">Total Classes</label>
+            <input type="number" class="form-control" id="total_classes" name="total_classes" value="{{ attendance.total_classes if attendance else 0 }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="attended_classes" class="form-label">Attended Classes</label>
+            <input type="number" class="form-control" id="attended_classes" name="attended_classes" value="{{ attendance.attended_classes if attendance else 0 }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Attendance</button>
+    </form>
+</div>
+{% endblock %}

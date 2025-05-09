@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center text-primary mb-4">Admin Dashboard</h2>
+
+    <a href="{{ url_for('export_students') }}" class="btn btn-success mb-3">Export to Excel</a>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center shadow-lg">
+                <div class="card-body">
+                    <h5 class="card-title">Total Students</h5>
+                    <p class="display-4 text-primary">{{ total_students }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center shadow-lg">
+                <div class="card-body">
+                    <h5 class="card-title">Average Attendance</h5>
+                    <p class="display-4 text-success">{{ avg_attendance | round(2) }}%</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center shadow-lg">
+                <div class="card-body">
+                    <h5 class="card-title">Average Marks</h5>
+                    <p class="text-muted">Math: {{ avg_marks.math_avg | round(2) }}</p>
+                    <p class="text-muted">Science: {{ avg_marks.science_avg | round(2) }}</p>
+                    <p class="text-muted">History: {{ avg_marks.history_avg | round(2) }}</p>
+                    <p class="text-muted">English: {{ avg_marks.english_avg | round(2) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="table table-striped shadow-lg">
+        <thead class="table-primary">
+            <tr>
+                <th>Profile Picture</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>
+                    <img src="{{ url_for('static', filename='uploads/' + (student['profile_pic'] if student['profile_pic'] else 'default.png')) }}" 
+                         alt="Profile Picture" 
+                         class="img-thumbnail rounded-circle" 
+                         style="width: 50px; height: 50px;">
+                </td>
+                <td>{{ student['id'] }}</td>
+                <td>{{ student['name'] }}</td>
+                <td>{{ student['email'] }}</td>
+                <td>
+                    <a href="{{ url_for('delete_student', id=student['id']) }}" class="btn btn-danger btn-sm">Delete</a>
+                    <a href="{{ url_for('update_marks', id=student['id']) }}" class="btn btn-warning btn-sm">Update Marks</a>
+                    <a href="{{ url_for('update_attendance', id=student['id']) }}" class="btn btn-info btn-sm">Update Attendance</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

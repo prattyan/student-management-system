@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-center align-items-center vh-100 bg-light">
+    <div class="card shadow-lg p-4" style="min-width: 350px; max-width: 400px; width: 100%;">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-primary">Login</h2>
+            <p class="text-muted">Welcome back! Please login to your account</p>
+        </div>
+        <form method="POST">
+            <div class="form-floating mb-3">
+                <input type="email" class="form-control" id="email" name="email" placeholder="Email" required>
+                <label for="email">Email</label>
+            </div>
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                <label for="password">Password</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2 mb-3">Log In</button>
+            <p class="text-center small">
+                <a href="{{ url_for('reset_password_request') }}">Forgot Password?</a>
+            </p>
+            <p class="text-center small">Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+        </form>
+    </div>
+</div>
+{% endblock %}

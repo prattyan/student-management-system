@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block content %}
+<div class="container text-center">
+    <h1 class="display-4 text-primary mb-4">Attendance Details</h1>
+
+    <!-- Attendance Information -->
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-calendar-check"></i> Attendance Summary</h5>
+                    <p><strong>Total Classes:</strong> {{ attendance.total_classes }}</p>
+                    <p><strong>Attended Classes:</strong> {{ attendance.attended_classes }}</p>
+                    <p><strong>Attendance Percentage:</strong> {{ attendance.attendance_percentage }}%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

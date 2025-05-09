@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-center">Edit Profile</h2>
+<form method="POST" action="{{ url_for('edit_profile') }}" enctype="multipart/form-data">
+    <div class="mb-3">
+        <input type="text" class="form-control" name="name" value="{{ student.name }}" placeholder="Full Name" required>
+    </div>
+    <div class="mb-3">
+        <input type="email" class="form-control" name="email" value="{{ student.email }}" placeholder="Email" required>
+    </div>
+    <div class="mb-3">
+        <input type="text" class="form-control" name="phone" value="{{ student.phone }}" placeholder="Phone Number" required>
+    </div>
+    <div class="mb-3">
+        <input type="text" class="form-control" name="roll_number" value="{{ student.roll_number }}" placeholder="Roll Number" required>
+    </div>
+    <div class="mb-3">
+        <input type="text" class="form-control" name="department" value="{{ student.department }}" placeholder="Department" required>
+    </div>
+    <div class="mb-3">
+        <label for="profile_pic" class="form-label">Upload Profile Picture</label>
+        <input type="file" class="form-control" name="file" id="profile_pic" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Update Profile</button>
+</form>
+{% endblock %}
