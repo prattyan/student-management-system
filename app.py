@@ -25,11 +25,31 @@ def get_db_connection():
 # Initialize the database
 def init_db():
     with get_db_connection() as conn:
+        # Create students table
         conn.execute('''
-            CREATE TABLE IF NOT EXISTS documents (
+            CREATE TABLE IF NOT EXISTS students (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                phone TEXT,
+                roll_number TEXT,
+                department TEXT,
+                profile_pic TEXT DEFAULT 'default.png',
+                math_marks INTEGER DEFAULT 0,
+                science_marks INTEGER DEFAULT 0,
+                history_marks INTEGER DEFAULT 0,
+                english_marks INTEGER DEFAULT 0
+            )
+        ''')
+        # Create attendance table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS attendance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 student_id INTEGER NOT NULL,
-                file_name TEXT NOT NULL,
+                class_id INTEGER DEFAULT 1,
+                total_classes INTEGER DEFAULT 0,
+                attended_classes INTEGER DEFAULT 0,
                 FOREIGN KEY (student_id) REFERENCES students (id)
             )
         ''')
@@ -202,7 +222,6 @@ def dashboard():
 
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (session['student_id'],)).fetchone()
-    documents = conn.execute('SELECT * FROM documents WHERE student_id = ?', (session['student_id'],)).fetchall()
     conn.close()
 
     if not student:
@@ -219,7 +238,7 @@ def dashboard():
         'profile_pic': student['profile_pic'] if student['profile_pic'] else 'default.png'
     }
 
-    return render_template('dashboard.html', student=student_data, documents=documents)
+    return render_template('dashboard.html', student=student_data)
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
