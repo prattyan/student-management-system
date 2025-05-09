@@ -4,7 +4,10 @@
 <div class="container mt-5">
     <h2 class="text-center text-primary mb-4">Admin Dashboard</h2>
 
-    <a href="{{ url_for('export_students') }}" class="btn btn-success mb-3">Export to Excel</a>
+    <div class="mb-3">
+        <a href="{{ url_for('export_students') }}" class="btn btn-success">Export Student</a>
+        <a href="{{ url_for('export_attendance') }}" class="btn btn-info ms-2">Export Attendance</a>
+    </div>
 
     <div class="row mb-4">
         <div class="col-md-4">
