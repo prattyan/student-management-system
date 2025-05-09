@@ -5,42 +5,112 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Student Management System{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background: #f8fafc; }
+        .sidebar {
+            min-height: 100vh;
+            background: #212529;
+            color: #fff;
+            padding-top: 2rem;
+        }
+        .sidebar .nav-link, .sidebar .navbar-brand {
+            color: #fff;
+        }
+        .sidebar .nav-link.active, .sidebar .nav-link:hover {
+            background: #0d6efd;
+            color: #fff;
+        }
+        .content-area {
+            margin-left: 220px;
+            padding: 2rem 1rem;
+        }
+        @media (max-width: 991.98px) {
+            .sidebar { display: none; }
+            .content-area { margin-left: 0; }
+        }
+        .navbar-profile {
+            display: flex;
+            align-items: center;
+        }
+        .navbar-profile img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+    </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    
+    {% if session.get('admin') %}
+    <div class="sidebar position-fixed d-none d-lg-block bg-dark" style="width:220px; min-height:100vh;">
+        
+        <a class="navbar-brand mb-4 px-3 py-2 d-block text-white fw-bold" href="#">
+            <i class="fa-solid fa-graduation-cap me-2"></i> Student Management
+        </a>
+        <nav class="nav flex-column px-2">
+            <a class="nav-link text-white {% if request.endpoint == 'admin_dashboard' %}active bg-primary{% endif %} rounded mb-1" href="{{ url_for('admin_dashboard') }}">
+                <i class="fa fa-home me-2"></i> Dashboard
+            </a>
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('export_students') }}">
+                <i class="fa fa-file-excel me-2"></i> Export Students
+            </a>
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('export_attendance') }}">
+                <i class="fa fa-file-excel me-2"></i> Export Attendance
+            </a>
+        </nav>
+    </div>
+    {% endif %}
+
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('home') }}">Student Management System</a>
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}"><i class="fa-solid fa-graduation-cap"></i> Student Management</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center">
                     {% if 'student_id' in session %}
                         {% if not session.get('admin') %}
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('edit_profile') }}">Edit Profile</a></li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center" href="{{ url_for('dashboard') }}">
+                                    <i class="fa fa-home me-1"></i> Dashboard
+                                </a>
+                            </li>
                         {% endif %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle navbar-profile" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img src="{{ url_for('static', filename='uploads/' + (session.get('student_profile_pic', 'default.png'))) }}" alt="Profile">
+                                {{ session.get('student_name', 'User') }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                                <li><a class="dropdown-item" href="{{ url_for('student_details') }}"><i class="fa fa-user"></i> Profile</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('edit_profile') }}"><i class="fa fa-user-edit"></i> Edit Profile</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('change_password') }}"><i class="fa fa-key"></i> Change Password</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fa fa-sign-out-alt"></i> Logout</a></li>
+                            </ul>
+                        </li>
                     {% else %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('register') }}">Register</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}"><i class="fa fa-sign-in-alt"></i> Login</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('register') }}"><i class="fa fa-user-plus"></i> Register</a></li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- Flash Messages -->
+    
     <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fa fa-info-circle me-2"></i>{{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
@@ -48,12 +118,12 @@
         {% endwith %}
     </div>
 
-    <!-- Main Content -->
-    <div class="container mt-4">
+  
+    <div class="{% if session.get('admin') %}content-area{% endif %}">
         {% block content %}{% endblock %}
     </div>
 
-    <!-- Footer -->
+    
     <footer class="bg-primary text-white text-center py-3 mt-5">
         <p>&copy; 2025 Student Database System. All rights reserved.</p>
     </footer>

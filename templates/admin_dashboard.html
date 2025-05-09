@@ -1,74 +1,74 @@
 {% extends "base.html" %}
 {% block title %}Admin Dashboard{% endblock %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center text-primary mb-4">Admin Dashboard</h2>
-
-    <div class="mb-3">
-        <a href="{{ url_for('export_students') }}" class="btn btn-success">Export Student</a>
-        <a href="{{ url_for('export_attendance') }}" class="btn btn-info ms-2">Export Attendance</a>
-    </div>
-
+<div class="container-fluid">
+    <h2 class="mb-4 text-primary"><i class="fa fa-tachometer-alt"></i> Admin Dashboard</h2>
     <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card text-center shadow-lg">
+        <div class="col-md-3">
+            <div class="card text-center shadow border-0">
                 <div class="card-body">
-                    <h5 class="card-title">Total Students</h5>
-                    <p class="display-4 text-primary">{{ total_students }}</p>
+                    <h6 class="card-title text-muted">Total Students</h6>
+                    <span class="display-5 text-primary fw-bold">{{ total_students }}</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center shadow-lg">
+        <div class="col-md-3">
+            <div class="card text-center shadow border-0">
                 <div class="card-body">
-                    <h5 class="card-title">Average Attendance</h5>
-                    <p class="display-4 text-success">{{ avg_attendance | round(2) }}%</p>
+                    <h6 class="card-title text-muted">Average Attendance</h6>
+                    <span class="display-6 text-success fw-bold">{{ avg_attendance | round(2) }}%</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card text-center shadow-lg">
+        <div class="col-md-6">
+            <div class="card text-center shadow border-0">
                 <div class="card-body">
-                    <h5 class="card-title">Average Marks</h5>
-                    <p class="text-muted">Math: {{ avg_marks.math_avg | round(2) }}</p>
-                    <p class="text-muted">Science: {{ avg_marks.science_avg | round(2) }}</p>
-                    <p class="text-muted">History: {{ avg_marks.history_avg | round(2) }}</p>
-                    <p class="text-muted">English: {{ avg_marks.english_avg | round(2) }}</p>
+                    <h6 class="card-title text-muted">Average Marks</h6>
+                    <div class="row">
+                        <div class="col"><span class="badge bg-primary">Math: {{ avg_marks.math_avg | round(2) }}</span></div>
+                        <div class="col"><span class="badge bg-success">Science: {{ avg_marks.science_avg | round(2) }}</span></div>
+                        <div class="col"><span class="badge bg-warning text-dark">History: {{ avg_marks.history_avg | round(2) }}</span></div>
+                        <div class="col"><span class="badge bg-info text-dark">English: {{ avg_marks.english_avg | round(2) }}</span></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <table class="table table-striped shadow-lg">
-        <thead class="table-primary">
-            <tr>
-                <th>Profile Picture</th>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for student in students %}
-            <tr>
-                <td>
-                    <img src="{{ url_for('static', filename='uploads/' + (student['profile_pic'] if student['profile_pic'] else 'default.png')) }}" 
-                         alt="Profile Picture" 
-                         class="img-thumbnail rounded-circle" 
-                         style="width: 50px; height: 50px;">
-                </td>
-                <td>{{ student['id'] }}</td>
-                <td>{{ student['name'] }}</td>
-                <td>{{ student['email'] }}</td>
-                <td>
-                    <a href="{{ url_for('delete_student', id=student['id']) }}" class="btn btn-danger btn-sm">Delete</a>
-                    <a href="{{ url_for('update_marks', id=student['id']) }}" class="btn btn-warning btn-sm">Update Marks</a>
-                    <a href="{{ url_for('update_attendance', id=student['id']) }}" class="btn btn-info btn-sm">Update Attendance</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+
+    <div class="table-responsive shadow-sm">
+        <table class="table table-hover align-middle">
+            <thead class="table-primary">
+                <tr>
+                    <th>Profile</th>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>
+                        <img src="{{ url_for('static', filename='uploads/' + (student['profile_pic'] if student['profile_pic'] else 'default.png')) }}"
+                             alt="Profile Picture"
+                             class="img-thumbnail rounded-circle"
+                             style="width: 48px; height: 48px;">
+                    </td>
+                    <td>{{ student['id'] }}</td>
+                    <td>{{ student['name'] }}</td>
+                    <td>{{ student['email'] }}</td>
+                    <td>
+                        <a href="{{ url_for('update_marks', id=student['id']) }}" class="btn btn-warning btn-sm" title="Update Marks"><i class="fa fa-pen"></i></a>
+                        <a href="{{ url_for('update_attendance', id=student['id']) }}" class="btn btn-info btn-sm" title="Update Attendance"><i class="fa fa-calendar-check"></i></a>
+                        <a href="{{ url_for('delete_student', id=student['id']) }}" class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Are you sure you want to delete this student?');"><i class="fa fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

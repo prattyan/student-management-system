@@ -196,6 +196,7 @@ def login():
         student = conn.execute('SELECT * FROM students WHERE email = ?', (email,)).fetchone()
         conn.close()
 
+        # After successful login, set student_profile_pic in session
         if student and check_password_hash(student['password'], password):
             session['student_id'] = student['id']
             session['student_name'] = student['name']
@@ -203,6 +204,7 @@ def login():
             session['student_phone'] = student['phone']
             session['student_roll_number'] = student['roll_number']
             session['student_department'] = student['department']
+            session['student_profile_pic'] = student['profile_pic'] if student['profile_pic'] else 'default.png'  # <-- Add this line
             session['admin'] = (email == 'admin@example.com')  # Replace with your admin email
             session['role'] = 'admin' if session['admin'] else 'student'
 
@@ -299,6 +301,12 @@ def edit_profile():
         session['student_phone'] = phone
         session['student_roll_number'] = roll_number
         session['student_department'] = department
+
+        # Fetch the updated profile_pic from the database and update session
+        conn = get_db_connection()
+        profile_pic_row = conn.execute('SELECT profile_pic FROM students WHERE id = ?', (session['student_id'],)).fetchone()
+        conn.close()
+        session['student_profile_pic'] = profile_pic_row['profile_pic'] if profile_pic_row and profile_pic_row['profile_pic'] else 'default.png'
 
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('dashboard'))
