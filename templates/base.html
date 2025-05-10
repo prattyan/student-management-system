@@ -9,7 +9,22 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Roboto', sans-serif; background: #f8fafc; }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .content-wrapper {
+            flex: 1;
+        }
+        footer {
+            background: #0d6efd;
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+        }
         .sidebar {
             min-height: 100vh;
             background: #212529;
@@ -119,12 +134,12 @@
     </div>
 
   
-    <div class="{% if session.get('admin') %}content-area{% endif %}">
+    <div class="{% if session.get('admin') %}content-area{% endif %} content-wrapper">
         {% block content %}{% endblock %}
     </div>
 
     
-    <footer class="bg-primary text-white text-center py-3 mt-5">
+    <footer>
         <p>&copy; 2025 Student Database System. All rights reserved.</p>
     </footer>
 

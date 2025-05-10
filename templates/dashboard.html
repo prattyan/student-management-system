@@ -1,72 +1,77 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="container text-center mt-5">
-    <h1 class="display-4 text-primary mb-4">Welcome, {{ student.name }}!</h1>
-    <p class="lead text-muted">Manage your profile and view your progress below.</p>
-
-    <!-- Real-Time Date and Time -->
-    <div class="mb-4">
-        <h5 class="text-secondary">Current Date and Time:</h5>
-        <h4 id="current-time" class="text-primary"></h4>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12 text-center mb-4">
+            <h1 class="display-4 text-primary">Welcome, {{ student.name }}!</h1>
+            <p class="lead text-muted">Manage your profile and view your progress below.</p>
+        </div>
     </div>
 
-    <!-- Notifications -->
-    {% if notifications %}
-    <div class="alert alert-warning">
-        <ul>
-            {% for notification in notifications %}
-            <li>{{ notification }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    <!-- Profile Picture -->
+    <!-- Profile Card -->
     <div class="row justify-content-center mb-5">
-        <div class="col-md-8">
-            <div class="card shadow-lg">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
                 <div class="card-body text-center">
                     <img src="{{ url_for('static', filename='uploads/' + student.profile_pic) }}" 
                          alt="Profile Picture" 
                          class="img-thumbnail rounded-circle mb-3" 
                          style="width: 150px; height: 150px;">
-                    <h5 class="card-title">{{ student.name }}</h5>
+                    <h5 class="card-title text-primary">{{ student.name }}</h5>
                     <p class="text-muted">{{ student.email }}</p>
+                    <p class="text-secondary"><i class="fa fa-id-badge me-2"></i>{{ student.roll_number }}</p>
+                    <p class="text-secondary"><i class="fa fa-building me-2"></i>{{ student.department }}</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- View Details Button -->
-    <div class="row justify-content-center">
-        <div class="col-md-4">
-            <a href="{{ url_for('student_details') }}" class="btn btn-primary w-100 mb-3">View Profile</a>
+    <!-- Action Cards -->
+    <div class="row text-center">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <i class="fa fa-user-circle fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Profile</h5>
+                    <p class="card-text text-muted">View and update your profile details.</p>
+                    <a href="{{ url_for('student_details') }}" class="btn btn-primary btn-sm">View Profile</a>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('attendance') }}" class="btn btn-secondary w-100 mb-3">View Attendance</a>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <i class="fa fa-calendar-check fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Attendance</h5>
+                    <p class="card-text text-muted">Check your attendance records.</p>
+                    <a href="{{ url_for('attendance') }}" class="btn btn-success btn-sm">View Attendance</a>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('view_marks') }}" class="btn btn-success w-100 mb-3">View Marks</a>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <i class="fa fa-bar-chart fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">Marks</h5>
+                    <p class="card-text text-muted">View your academic performance.</p>
+                    <a href="{{ url_for('view_marks') }}" class="btn btn-warning btn-sm">View Marks</a>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('change_password') }}" class="btn btn-warning w-100">Change Password</a>
-        </div>
+        
     </div>
-
 </div>
 
-<!-- JavaScript to Update Time -->
-<script>
-    function updateTime() {
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-        document.getElementById('current-time').textContent = now.toLocaleDateString('en-US', options);
+<!-- Add Custom Styles -->
+<style>
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-
-    // Update time every second
-    setInterval(updateTime, 1000);
-    updateTime(); // Call immediately to display time on page load
-</script>
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+</style>
 {% endblock %}
 

@@ -7,13 +7,16 @@ from authlib.integrations.flask_client import OAuth
 from pymongo import MongoClient
 from io import BytesIO
 from flask import send_file
-
 app = Flask(__name__)
 app.secret_key = 'secret_key'
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+app.config['SESSION_COOKIE_SECURE'] = True  # Use HTTPS for cookies
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF in cross-site requests
 
 DATABASE = 'students.db'
 # Helper function to connect to the database
