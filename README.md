@@ -133,7 +133,7 @@ Pull requests are welcome! For major changes, please open an issue first to disc
 
 ## 📧 Contact
 
-For any queries, please contact [your-email@example.com](mailto:prattyanghosh@gmail.com).
+For any queries, please contact [prattyanghosh@gmail.com](mailto:prattyanghosh@gmail.com).
 
 ---
 
