@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Admit Card{% endblock %}
+{% block content %}
+<div class="container text-center mt-5">
+    <div class="card shadow-lg mx-auto" style="max-width: 500px;">
+        <div class="card-body">
+            <h2 class="card-title text-primary mb-4">Admit Card</h2>
+            <img src="{{ url_for('static', filename='uploads/' + (student.profile_pic if student.profile_pic else 'default.png')) }}"
+                 alt="Profile Picture"
+                 class="img-thumbnail rounded-circle mb-3"
+                 style="width: 100px; height: 100px;">
+            <h5 class="mb-2">{{ student.name }}</h5>
+            <p class="mb-1"><strong>Roll Number:</strong> {{ student.roll_number }}</p>
+            <p class="mb-1"><strong>Department:</strong> {{ student.department }}</p>
+            <p class="mb-1"><strong>Email:</strong> {{ student.email }}</p>
+            <hr>
+            <p class="mb-1"><strong>Exam Center:</strong> {{ exam_settings.exam_center }}</p>
+            <p class="mb-1"><strong>Date:</strong> {{ exam_settings.exam_date }}</p>
+            <p class="mb-1"><strong>Reporting Time:</strong> {{ exam_settings.reporting_time }}</p>
+            <a href="{{ url_for('download_admit_card', student_id=student.id) }}" class="btn btn-outline-primary btn-sm mt-3">
+                <i class="fa fa-download"></i> Download PDF
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,37 +1,379 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, make_response
-from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
 import os
-from werkzeug.utils import secure_filename
-from authlib.integrations.flask_client import OAuth
-from pymongo import MongoClient
-from io import BytesIO
-from flask import send_file
-import uuid
+import sqlite3
 import time
-import threading
+import pandas as pd
+from flask import Flask, render_template, request, redirect, url_for, session, flash, make_response, send_file
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from io import BytesIO
+
 app = Flask(__name__)
 app.secret_key = 'secret_key'
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit upload size to 16MB
+app.config['SESSION_COOKIE_NAME'] = 'session_cookie'
 app.config['SESSION_COOKIE_SECURE'] = True  # Use HTTPS for cookies
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF in cross-site requests
+app.config['SESSION_PERMANENT'] = False  # Session will not persist after browser is closed
+app.config['SESSION_USE_SIGNER'] = True  # Sign the session cookie to prevent tampering
+from fpdf import FPDF
+
+@app.route('/export_all_admit_cards')
+def export_all_admit_cards():
+    from fpdf import FPDF
+    import os
+
+    export_dir = os.path.join('static', 'admit_cards')
+    os.makedirs(export_dir, exist_ok=True)
+    uploads_dir = os.path.join('static', 'uploads')
+    logo_path = os.path.join('static', 'logo.png')  # Optional: add your logo here
+
+    conn = get_db_connection()
+    students = conn.execute('SELECT * FROM students').fetchall()
+    conn.close()
+
+    exam_settings = get_exam_settings()
+
+    for student in students:
+        pdf = FPDF()
+        pdf.add_page()
+        # Luxury border
+        pdf.set_line_width(1.5)
+        pdf.set_draw_color(44, 62, 80)  # Dark blue
+        pdf.rect(5, 5, 200, 287)
+
+        # Heading
+        pdf.set_xy(10, 30)
+        pdf.set_font("Arial", 'B', 22)
+        pdf.set_text_color(44, 62, 80)
+        pdf.cell(190, 15, "ADMIT CARD", ln=True, align='C')
+
+        # Student Picture
+        profile_pic = student['profile_pic'] if student['profile_pic'] else 'default.png'
+        pic_path = os.path.join(uploads_dir, profile_pic)
+        if not os.path.exists(pic_path):
+            pic_path = os.path.join(uploads_dir, 'default.png')
+        try:
+            pdf.image(pic_path, x=150, y=30, w=35, h=35)
+        except:
+            pass  # If image fails, continue
+
+        # Student Info (luxury layout, left-aligned)
+        pdf.set_xy(10, 80)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.set_text_color(52, 73, 94)
+        pdf.cell(50, 10, "Name:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['name']}", ln=1)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(50, 10, "Roll Number:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['roll_number']}", ln=1)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(50, 10, "Department:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['department']}", ln=1)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(50, 10, "Email:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['email']}", ln=1)
+
+        pdf.ln(5)
+        pdf.set_draw_color(127, 140, 141)
+        pdf.set_line_width(0.5)
+        pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+        pdf.ln(5)
+
+        # Exam Info
+        pdf.set_font("Arial", 'B', 13)
+        pdf.set_text_color(41, 128, 185)
+        pdf.cell(0, 10, "Exam Details", ln=1, align='L')
+        pdf.set_text_color(44, 62, 80)
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 8, f"Exam Center: {exam_settings['exam_center']}", ln=1, align='L')
+        pdf.cell(0, 8, f"Date: {exam_settings['exam_date']}", ln=1, align='L')
+        pdf.cell(0, 8, f"Reporting Time: {exam_settings['reporting_time']}", ln=1, align='L')
+
+        # Signature section
+        signature_path = os.path.join('static', 'signature.png')
+        if os.path.exists(signature_path):
+            # Place the signature image above the signature text
+            pdf.image(signature_path, x=140, y=pdf.get_y(), w=50, h=20)
+            pdf.ln(18)  # Move below the image
+
+        pdf.set_font("Arial", 'I', 12)
+        pdf.set_draw_color(44, 62, 80)
+        pdf.line(140, pdf.get_y(), 200, pdf.get_y())
+        pdf.cell(0, 10, "Signature of Controller of Examinations", ln=1, align='R')
+
+        file_path = os.path.join(export_dir, f"admit_card_{student['id']}.pdf")
+        pdf.output(file_path)
+
+    flash('All admit cards exported successfully!', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/export_all_profiles')
+def export_all_profiles():
+    from fpdf import FPDF
+    import os
+
+    export_dir = os.path.join('static', 'profiles')
+    os.makedirs(export_dir, exist_ok=True)
+    uploads_dir = os.path.join('static', 'uploads')
+
+    conn = get_db_connection()
+    students = conn.execute('SELECT * FROM students').fetchall()
+    conn.close()
+
+    for student in students:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_line_width(1.2)
+        pdf.set_draw_color(52, 73, 94)
+        pdf.rect(8, 8, 194, 281)
+
+        # Heading
+        pdf.set_xy(10, 20)
+        pdf.set_font("Arial", 'B', 20)
+        pdf.set_text_color(41, 128, 185)
+        pdf.cell(190, 15, "Student Profile", ln=True, align='C')
+
+        # Student Picture
+        profile_pic = student['profile_pic'] if student['profile_pic'] else 'default.png'
+        pic_path = os.path.join(uploads_dir, profile_pic)
+        if not os.path.exists(pic_path):
+            pic_path = os.path.join(uploads_dir, 'default.png')
+        try:
+            pdf.image(pic_path, x=85, y=40, w=40, h=40)
+        except:
+            pass
+
+        # Student Info
+        pdf.set_xy(10, 90)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.set_text_color(52, 73, 94)
+        pdf.cell(50, 10, "Name:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['name']}", ln=1)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(50, 10, "Email:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['email']}", ln=1)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(50, 10, "Phone:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['phone']}", ln=1)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(50, 10, "Roll Number:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['roll_number']}", ln=1)
+
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(50, 10, "Department:", ln=0)
+        pdf.set_font("Arial", '', 14)
+        pdf.cell(0, 10, f"{student['department']}", ln=1)
+
+        # Marks (optional)
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 13)
+        pdf.set_text_color(41, 128, 185)
+        pdf.cell(0, 10, "Marks", ln=1, align='L')
+        pdf.set_text_color(52, 73, 94)
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 8, f"Math: {student['math_marks']}", ln=1, align='L')
+        pdf.cell(0, 8, f"Science: {student['science_marks']}", ln=1, align='L')
+        pdf.cell(0, 8, f"History: {student['history_marks']}", ln=1, align='L')
+        pdf.cell(0, 8, f"English: {student['english_marks']}", ln=1, align='L')
+
+        file_path = os.path.join(export_dir, f"profile_{student['id']}.pdf")
+        pdf.output(file_path)
+
+    flash('All student profiles exported successfully!', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 DATABASE = 'students.db'
-# Helper function to connect to the database
+
 def get_db_connection():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
-# Initialize the database
+@app.route('/download_admit_card/<int:student_id>')
+def download_admit_card(student_id):
+    # Only allow the logged-in student or admin to download
+    if 'student_id' not in session or (session['student_id'] != student_id and not session.get('admin')):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+    conn.close()
+    if not student:
+        flash('Student not found.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    exam_settings = get_exam_settings()
+    uploads_dir = os.path.join('static', 'uploads')
+    profile_pic = student['profile_pic'] if student['profile_pic'] else 'default.png'
+    pic_path = os.path.join(uploads_dir, profile_pic)
+    if not os.path.exists(pic_path):
+        pic_path = os.path.join(uploads_dir, 'default.png')
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_line_width(1.5)
+    pdf.set_draw_color(44, 62, 80)
+    pdf.rect(5, 5, 200, 287)
+    pdf.set_xy(10, 30)
+    pdf.set_font("Arial", 'B', 22)
+    pdf.set_text_color(44, 62, 80)
+    pdf.cell(190, 15, "ADMIT CARD", ln=True, align='C')
+    try:
+        pdf.image(pic_path, x=150, y=30, w=35, h=35)
+    except:
+        pass
+    pdf.set_xy(10, 80)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(52, 73, 94)
+    pdf.cell(50, 10, "Name:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['name']}", ln=1)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(50, 10, "Roll Number:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['roll_number']}", ln=1)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(50, 10, "Department:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['department']}", ln=1)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(50, 10, "Email:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['email']}", ln=1)
+    pdf.ln(5)
+    pdf.set_draw_color(127, 140, 141)
+    pdf.set_line_width(0.5)
+    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.set_text_color(41, 128, 185)
+    pdf.cell(0, 10, "Exam Details", ln=1, align='L')
+    pdf.set_text_color(44, 62, 80)
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 8, f"Exam Center: {exam_settings['exam_center']}", ln=1, align='L')
+    pdf.cell(0, 8, f"Date: {exam_settings['exam_date']}", ln=1, align='L')
+    pdf.cell(0, 8, f"Reporting Time: {exam_settings['reporting_time']}", ln=1, align='L')
+    signature_path = os.path.join('static', 'signature.png')
+    if os.path.exists(signature_path):
+        pdf.image(signature_path, x=140, y=pdf.get_y(), w=50, h=20)
+        pdf.ln(18)
+    pdf.set_font("Arial", 'I', 12)
+    pdf.set_draw_color(44, 62, 80)
+    pdf.line(140, pdf.get_y(), 200, pdf.get_y())
+    pdf.cell(0, 10, "Signature of Controller of Examinations", ln=1, align='R')
+
+    pdf_output = BytesIO()
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    pdf_output.write(pdf_bytes)
+    pdf_output.seek(0)
+    return send_file(pdf_output, as_attachment=True, download_name=f'admit_card_{student['id']}.pdf', mimetype='application/pdf')
+
+@app.route('/download_profile/<int:student_id>')
+def download_profile(student_id):
+    # Only allow the logged-in student or admin to download
+    if 'student_id' not in session or (session['student_id'] != student_id and not session.get('admin')):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    uploads_dir = os.path.join('static', 'uploads')
+    conn = get_db_connection()
+    student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+    conn.close()
+    if not student:
+        flash('Student not found.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    profile_pic = student['profile_pic'] if student['profile_pic'] else 'default.png'
+    pic_path = os.path.join(uploads_dir, profile_pic)
+    if not os.path.exists(pic_path):
+        pic_path = os.path.join(uploads_dir, 'default.png')
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_line_width(1.2)
+    pdf.set_draw_color(52, 73, 94)
+    pdf.rect(8, 8, 194, 281)
+
+    # Heading
+    pdf.set_xy(10, 20)
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(41, 128, 185)
+    pdf.cell(190, 15, "Student Profile", ln=True, align='C')
+
+    # Student Picture
+    try:
+        pdf.image(pic_path, x=85, y=40, w=40, h=40)
+    except:
+        pass
+
+    # Student Info
+    pdf.set_xy(10, 90)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(52, 73, 94)
+    pdf.cell(50, 10, "Name:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['name']}", ln=1)
+
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(50, 10, "Email:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['email']}", ln=1)
+
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(50, 10, "Phone:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['phone']}", ln=1)
+
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(50, 10, "Roll Number:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['roll_number']}", ln=1)
+
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(50, 10, "Department:", ln=0)
+    pdf.set_font("Arial", '', 14)
+    pdf.cell(0, 10, f"{student['department']}", ln=1)
+
+    # Marks (optional)
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 13)
+    pdf.set_text_color(41, 128, 185)
+    pdf.cell(0, 10, "Marks", ln=1, align='L')
+    pdf.set_text_color(52, 73, 94)
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 8, f"Math: {student['math_marks']}", ln=1, align='L')
+    pdf.cell(0, 8, f"Science: {student['science_marks']}", ln=1, align='L')
+    pdf.cell(0, 8, f"History: {student['history_marks']}", ln=1, align='L')
+    pdf.cell(0, 8, f"English: {student['english_marks']}", ln=1, align='L')
+
+    pdf_output = BytesIO()
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    pdf_output.write(pdf_bytes)
+    pdf_output.seek(0)
+    return send_file(pdf_output, as_attachment=True, download_name=f'profile_{student["id"]}.pdf', mimetype='application/pdf')
+
 def init_db():
     with get_db_connection() as conn:
-        # Create students table
         conn.execute('''
             CREATE TABLE IF NOT EXISTS students (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,10 +387,10 @@ def init_db():
                 math_marks INTEGER DEFAULT 0,
                 science_marks INTEGER DEFAULT 0,
                 history_marks INTEGER DEFAULT 0,
-                english_marks INTEGER DEFAULT 0
+                english_marks INTEGER DEFAULT 0,
+                session_token TEXT
             )
         ''')
-        # Create attendance table
         conn.execute('''
             CREATE TABLE IF NOT EXISTS attendance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,6 +401,19 @@ def init_db():
                 FOREIGN KEY (student_id) REFERENCES students (id)
             )
         ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS exam_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exam_center TEXT DEFAULT 'Main Campus',
+                exam_date TEXT DEFAULT '01 June 2025',
+                reporting_time TEXT DEFAULT '09:00 AM'
+            )
+        ''')
+        if not conn.execute('SELECT * FROM exam_settings').fetchone():
+            conn.execute('''
+                INSERT INTO exam_settings (exam_center, exam_date, reporting_time)
+                VALUES ('Main Campus', '01 June 2025', '09:00 AM')
+            ''')
         conn.commit()
 
 def allowed_file(filename):
@@ -77,13 +432,9 @@ def upload_profile_pic():
     file = request.files['file']
     if file and allowed_file(file.filename):
         student_id = session['student_id']
-        file_extension = file.filename.rsplit('.', 1)[1].lower()  
-        filename = f"{student_id}.{file_extension}"  
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{student_id}.{file_extension}"
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        print(f"Student ID: {student_id}")
-        print(f"File Extension: {file_extension}")
-        print(f"Filename: {filename}")
-        print(f"File Path: {file_path}")
         file.save(file_path)
 
         conn = get_db_connection()
@@ -114,7 +465,7 @@ def update_marks(id):
             UPDATE students
             SET math_marks = ?, science_marks = ?, history_marks = ?, english_marks = ?
             WHERE id = ?
-        ''', (math_marks, science_marks, history_marks,english_marks, id))
+        ''', (math_marks, science_marks, history_marks, english_marks, id))
         conn.commit()
         conn.close()
         flash('Marks updated successfully!', 'success')
@@ -170,9 +521,9 @@ def register():
         conn = get_db_connection()
         existing_student = conn.execute('SELECT * FROM students WHERE email = ?', (email,)).fetchone()
         if existing_student:
-            flash('Email already exists!', 'danger')
+            flash('Email already registered. Please login.', 'danger')
             conn.close()
-            return redirect(url_for('register'))
+            return redirect(url_for('login'))
 
         conn.execute('''
             INSERT INTO students (name, email, password, phone, roll_number, department)
@@ -196,19 +547,7 @@ def login():
         student = conn.execute('SELECT * FROM students WHERE email = ?', (email,)).fetchone()
 
         if student and check_password_hash(student['password'], password):
-            # Check if already logged in elsewhere
-            if student['session_token']:
-                flash('You are already logged in from another device. Please logout first.', 'danger')
-                conn.close()
-                return redirect(url_for('login'))
-
-            # Generate a new session token
-            session_token = str(uuid.uuid4())
-            conn.execute('UPDATE students SET session_token = ? WHERE id = ?', (session_token, student['id']))
-            conn.commit()
-            conn.close()
-
-            # Set session variables
+            session.clear()
             session['student_id'] = student['id']
             session['student_name'] = student['name']
             session['student_email'] = student['email']
@@ -216,27 +555,32 @@ def login():
             session['student_roll_number'] = student['roll_number']
             session['student_department'] = student['department']
             session['student_profile_pic'] = student['profile_pic'] if student['profile_pic'] else 'default.png'
-            session['admin'] = (email == 'admin@example.com')
-            session['role'] = 'admin' if session['admin'] else 'student'
+            # Admin login
+            if student['email'] == 'admin@example.com':
+                session['admin'] = True
+            else:
+                session['admin'] = False
+            # Session token and expiry
+            session_token = os.urandom(24).hex()
+            expires_at = int(time.time()) + 3600  # 1 hour session
             session['session_token'] = session_token
-            session['expires_at'] = int(time.time()) + 100  # 10 seconds from now
-
-            if session['admin']:
-                return redirect(url_for('admin_dashboard'))
+            session['expires_at'] = expires_at
+            conn.execute('UPDATE students SET session_token = ? WHERE id = ?', (session_token, student['id']))
+            conn.commit()
+            conn.close()
             return redirect(url_for('dashboard'))
         else:
-            conn.close()
-            flash('Invalid Credentials', 'danger')
+            flash('Invalid email or password.', 'danger')
+            if conn:
+                conn.close()
+            return render_template('login.html')
 
     return render_template('login.html')
 
 def is_session_valid():
-    import time
     if 'student_id' not in session or 'session_token' not in session:
         return False
-    # Check if session expired
     if 'expires_at' not in session or int(time.time()) > session['expires_at']:
-        # Clear session_token in DB on expiry
         conn = get_db_connection()
         conn.execute('UPDATE students SET session_token = NULL WHERE id = ?', (session['student_id'],))
         conn.commit()
@@ -272,7 +616,21 @@ def dashboard():
         'profile_pic': student['profile_pic'] if student['profile_pic'] else 'default.png'
     }
 
-    return render_template('dashboard.html', student=student_data)
+    # Check if admit card PDF exists
+    admit_card_path = os.path.join('static', 'admit_cards', f"admit_card_{student['id']}.pdf")
+    admit_card_available = os.path.exists(admit_card_path)
+
+    # Check if profile PDF exists
+    profile_pdf_path = os.path.join('static', 'profiles', f"profile_{student['id']}.pdf")
+    profile_pdf_available = os.path.exists(profile_pdf_path)
+
+    return render_template(
+        'dashboard.html',
+        student=student_data,
+        expires_at=session.get('expires_at', 0),
+        admit_card_available=admit_card_available,
+        profile_pdf_available=profile_pdf_available
+    )
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
@@ -288,35 +646,16 @@ def edit_profile():
         file = request.files.get('file')
 
         conn = get_db_connection()
-
-        # Fetch the current profile picture
         current_profile_pic = conn.execute('SELECT profile_pic FROM students WHERE id = ?', (session['student_id'],)).fetchone()['profile_pic']
 
         # Handle profile picture upload
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
+            file_extension = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"{session['student_id']}.{file_extension}"
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-            # Delete the old profile picture if it's not the default
-            if current_profile_pic and current_profile_pic != 'default.png':
-                old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], current_profile_pic)
-                if os.path.exists(old_file_path):
-                    os.remove(old_file_path)
-
-            # Save the new profile picture
             file.save(file_path)
-            conn.execute('''
-                UPDATE students
-                SET profile_pic = ?
-                WHERE id = ?
-            ''', (filename, session['student_id']))
-        else:
-            # Ensure profile_pic remains as default.png if no file is uploaded
-            conn.execute('''
-                UPDATE students
-                SET profile_pic = COALESCE(profile_pic, 'default.png')
-                WHERE id = ?
-            ''', (session['student_id'],))
+            conn.execute('UPDATE students SET profile_pic = ? WHERE id = ?', (filename, session['student_id']))
+        # else: do nothing, keep current
 
         # Update other profile details
         conn.execute('''
@@ -367,18 +706,13 @@ def delete_student(id):
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-
-    # Fetch the student's profile picture filename
     student = conn.execute('SELECT profile_pic FROM students WHERE id = ?', (id,)).fetchone()
-    if student and student['profile_pic'] != 'default.png':  # Ensure it's not the default picture
+    if student and student['profile_pic'] != 'default.png':
         profile_pic_path = os.path.join(app.config['UPLOAD_FOLDER'], student['profile_pic'])
         if os.path.exists(profile_pic_path):
-            os.remove(profile_pic_path)  # Delete the profile picture file
+            os.remove(profile_pic_path)
 
-    # Delete related attendance records first (if any)
     conn.execute('DELETE FROM attendance WHERE student_id = ?', (id,))
-
-    # Delete the student record
     conn.execute('DELETE FROM students WHERE id = ?', (id,))
     conn.commit()
     conn.close()
@@ -401,7 +735,7 @@ def logout():
 def student_details():
     if 'student_id' not in session:
         return redirect(url_for('login'))
-    
+
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (session['student_id'],)).fetchone()
     conn.close()
@@ -454,18 +788,16 @@ def update_attendance(id):
     attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (id,)).fetchone()
 
     if request.method == 'POST':
-        total_classes = request.form['total_classes']
-        attended_classes = request.form['attended_classes']
+        total_classes = int(request.form['total_classes'])
+        attended_classes = int(request.form['attended_classes'])
 
         if attendance:
-            # Update existing attendance record
             conn.execute('''
                 UPDATE attendance
                 SET total_classes = ?, attended_classes = ?
                 WHERE student_id = ?
             ''', (total_classes, attended_classes, id))
         else:
-            # Insert new attendance record
             conn.execute('''
                 INSERT INTO attendance (student_id, total_classes, attended_classes)
                 VALUES (?, ?, ?)
@@ -498,17 +830,13 @@ def view_marks():
         else:
             return 'D'
 
-    # Function to calculate CGPA
     def calculate_cgpa(math, science, history, english):
         total_marks = math + science + history + english
-        max_marks = 400  # Assuming each subject is out of 100
+        max_marks = 400
         percentage = (total_marks / max_marks) * 100
-
-        # Convert percentage to CGPA (scale of 10)
-        cgpa = percentage / 9.5  # Common conversion formula
+        cgpa = percentage / 9.5
         return round(cgpa, 2)
 
-    # Calculate grades and CGPA
     marks_data = {
         'math_marks': student['math_marks'],
         'science_marks': student['science_marks'],
@@ -537,22 +865,15 @@ def export_students():
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-    # Exclude admin from the export
     students = conn.execute('SELECT * FROM students WHERE email != "admin@example.com"').fetchall()
     conn.close()
 
-    # Convert SQLite rows to a list of dictionaries
     student_list = [dict(student) for student in students]
-
-    # Create a DataFrame from the list of dictionaries
-    import pandas as pd
     df = pd.DataFrame(student_list)
 
-    # Ensure the export directory exists
     export_dir = os.path.join('static', 'exports')
     os.makedirs(export_dir, exist_ok=True)
 
-    # Save the DataFrame to an Excel file
     file_path = os.path.join(export_dir, 'students.xlsx')
     df.to_excel(file_path, index=False)
 
@@ -561,7 +882,7 @@ def export_students():
 
 @app.route('/export_attendance')
 def export_attendance():
-    if 'role' not in session or session['role'] != 'admin':
+    if 'admin' not in session or not session['admin']:
         flash('Access denied. Admins only.', 'danger')
         return redirect(url_for('login'))
 
@@ -570,8 +891,6 @@ def export_attendance():
     conn.close()
 
     attendance_list = [dict(record) for record in attendance]
-
-    import pandas as pd
     df = pd.DataFrame(attendance_list)
 
     export_dir = os.path.join('static', 'exports')
@@ -583,100 +902,69 @@ def export_attendance():
     flash('Attendance report exported successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
 
-
-
 @app.route('/reset_password_request', methods=['GET', 'POST'])
 def reset_password_request():
     if request.method == 'POST':
         email = request.form['email']
         phone = request.form['phone']
-
         conn = get_db_connection()
         student = conn.execute('SELECT * FROM students WHERE email = ? AND phone = ?', (email, phone)).fetchone()
         conn.close()
-
         if student:
-            # Generate a reset token (for simplicity, use the email as the token)
-            reset_token = email
-
-            # Redirect to the reset password page with the token
-            flash('Authentication successful! Please reset your password.', 'success')
-            return redirect(url_for('reset_password', token=reset_token))
+            # In a real app, generate a token and send email
+            token = os.urandom(16).hex()
+            session['reset_token'] = token
+            session['reset_student_id'] = student['id']
+            flash('Verification successful. Please reset your password.', 'success')
+            return redirect(url_for('reset_password', token=token))
         else:
-            flash('No account found with the provided email and phone number.', 'danger')
-
+            flash('No matching student found.', 'danger')
     return render_template('reset_password_request.html')
 
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     if request.method == 'POST':
-        new_password = request.form['password']
+        password = request.form['password']
         confirm_password = request.form['confirm_password']
-
-        # Check if the passwords match
-        if new_password != confirm_password:
-            flash('Passwords do not match. Please try again.', 'danger')
-            return redirect(url_for('reset_password', token=token))
-
-        conn = get_db_connection()
-        student = conn.execute('SELECT * FROM students WHERE email = ?', (token,)).fetchone()
-
-        if not student:
-            flash('Invalid token or user not found.', 'danger')
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('reset_password.html', token=token)
+        if 'reset_token' in session and session['reset_token'] == token:
+            conn = get_db_connection()
+            conn.execute('UPDATE students SET password = ? WHERE id = ?', (generate_password_hash(password), session['reset_student_id']))
+            conn.commit()
             conn.close()
-            return redirect(url_for('reset_password_request'))
-
-        # Check if the new password is the same as the current password
-        if check_password_hash(student['password'], new_password):
-            flash('New password cannot be the same as the current password.', 'danger')
-            conn.close()
-            return redirect(url_for('reset_password', token=token))
-
-        # Hash the new password and update it in the database
-        hashed_password = generate_password_hash(new_password)
-        conn.execute('UPDATE students SET password = ? WHERE email = ?', (hashed_password, token))
-        conn.commit()
-        conn.close()
-
-        flash('Your password has been reset successfully! You can now log in.', 'success')
-        return redirect(url_for('login'))
-
+            session.pop('reset_token', None)
+            session.pop('reset_student_id', None)
+            flash('Password reset successful. Please login.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Invalid or expired token.', 'danger')
     return render_template('reset_password.html', token=token)
 
 @app.route('/change_password', methods=['GET', 'POST'])
 def change_password():
     if 'student_id' not in session:
+        flash('Please login to change password.', 'danger')
         return redirect(url_for('login'))
 
     if request.method == 'POST':
         current_password = request.form['current_password']
         new_password = request.form['new_password']
         confirm_password = request.form['confirm_password']
-        if current_password == new_password:
-            flash('New password cannot be the same as the current password.', 'danger')
-            return redirect(url_for('change_password'))
+        if new_password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('change_password.html')
         conn = get_db_connection()
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (session['student_id'],)).fetchone()
-
-        # Check if the current password matches
-        if not check_password_hash(student['password'], current_password):
+        student = conn.execute('SELECT password FROM students WHERE id = ?', (session['student_id'],)).fetchone()
+        if not student or not check_password_hash(student['password'], current_password):
             flash('Current password is incorrect.', 'danger')
             conn.close()
-            return redirect(url_for('change_password'))
-
-        # Check if the new password and confirm password match
-        if new_password != confirm_password:
-            flash('New password and confirm password do not match.', 'danger')
-            conn.close()
-            return redirect(url_for('change_password'))
-
-        # Update the password in the database
-        hashed_password = generate_password_hash(new_password)
-        conn.execute('UPDATE students SET password = ? WHERE id = ?', (hashed_password, session['student_id']))
+            return render_template('change_password.html')
+        conn.execute('UPDATE students SET password = ? WHERE id = ?', (generate_password_hash(new_password), session['student_id']))
         conn.commit()
         conn.close()
-
-        flash('Password changed successfully!', 'success')
+        flash('Password changed successfully.', 'success')
         return redirect(url_for('dashboard'))
 
     return render_template('change_password.html')
@@ -684,23 +972,78 @@ def change_password():
 @app.route('/mark_attendance/<int:class_id>', methods=['GET'])
 def mark_attendance(class_id):
     if 'student_id' not in session:
-        flash('Please log in to mark attendance.', 'danger')
+        flash('Please login to mark attendance.', 'danger')
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-    conn.execute('''
-        INSERT INTO attendance (student_id, class_id, total_classes, attended_classes)
-        VALUES (?, ?, 1, 1)
-        ON CONFLICT(student_id, class_id) DO UPDATE SET
-        total_classes = total_classes + 1,
-        attended_classes = attended_classes + 1
-    ''', (session['student_id'], class_id))
+    attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ? AND class_id = ?', (session['student_id'], class_id)).fetchone()
+    if attendance:
+        conn.execute('''
+            UPDATE attendance
+            SET total_classes = total_classes + 1,
+                attended_classes = attended_classes + 1
+            WHERE student_id = ? AND class_id = ?
+        ''', (session['student_id'], class_id))
+    else:
+        conn.execute('''
+            INSERT INTO attendance (student_id, class_id, total_classes, attended_classes)
+            VALUES (?, ?, 1, 1)
+        ''', (session['student_id'], class_id))
     conn.commit()
     conn.close()
 
     flash('Attendance marked successfully!', 'success')
     return redirect(url_for('dashboard'))
 
+@app.route('/admit_card')
+def admit_card():
+    if 'student_id' not in session:
+        flash('Please login to view admit card.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    student = conn.execute('SELECT * FROM students WHERE id = ?', (session['student_id'],)).fetchone()
+    conn.close()
+
+    if not student:
+        flash('Student not found.', 'danger')
+        return redirect(url_for('login'))
+
+    # Convert sqlite3.Row to dict for attribute access in Jinja2
+    student = dict(student)
+
+    exam_settings = get_exam_settings()
+
+    return render_template('admit_card.html', student=student, exam_settings=exam_settings)
+
+@app.route('/exam_settings', methods=['GET', 'POST'])
+def exam_settings():
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    settings = conn.execute('SELECT * FROM exam_settings LIMIT 1').fetchone()
+
+    if request.method == 'POST':
+        exam_center = request.form['exam_center']
+        exam_date = request.form['exam_date']
+        reporting_time = request.form['reporting_time']
+        conn.execute('UPDATE exam_settings SET exam_center=?, exam_date=?, reporting_time=? WHERE id=?',
+                     (exam_center, exam_date, reporting_time, settings['id']))
+        conn.commit()
+        conn.close()
+        flash('Exam settings updated!', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    conn.close()
+    return render_template('exam_settings.html', settings=settings)
+
+def get_exam_settings():
+    conn = get_db_connection()
+    settings = conn.execute('SELECT * FROM exam_settings LIMIT 1').fetchone()
+    conn.close()
+    return settings
 
 @app.after_request
 def add_cache_control_headers(response):
@@ -709,24 +1052,17 @@ def add_cache_control_headers(response):
     response.headers["Expires"] = "0"
     return response
 
-import threading
-import time
-
-def clear_all_session_tokens_periodically():
-    while True:
-        time.sleep(120)  # 2 minutes in seconds
-        try:
-            conn = get_db_connection()
-            conn.execute('UPDATE students SET session_token = NULL')
-            conn.commit()
-            conn.close()
-            print("All session tokens cleared.")
-        except Exception as e:
-            print("Error clearing session tokens:", e)
-
-# Start the background thread
-threading.Thread(target=clear_all_session_tokens_periodically, daemon=True).start()
+@app.route('/clear_session')
+def clear_session():
+    if 'student_id' in session:
+        conn = get_db_connection()
+        conn.execute('UPDATE students SET session_token = NULL WHERE id = ?', (session['student_id'],))
+        conn.commit()
+        conn.close()
+    session.clear()
+    flash('Session cleared successfully.', 'success')
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0',port=5000)
+    app.run(host='0.0.0.0', port=5000)

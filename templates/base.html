@@ -76,6 +76,15 @@
             <a class="nav-link text-white rounded mb-1" href="{{ url_for('export_attendance') }}">
                 <i class="fa fa-file-excel me-2"></i> Export Attendance
             </a>
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('export_all_admit_cards') }}">
+                <i class="fa fa-id-card me-2"></i> Export All Admit Cards
+            </a>
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('export_all_profiles') }}">
+                <i class="fa fa-user me-2"></i> Export All Profiles
+            </a>
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('exam_settings') }}">
+                <i class="fa fa-cog me-2"></i> Exam Settings
+            </a>
         </nav>
     </div>
     {% endif %}
@@ -145,5 +154,24 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% if expires_at is defined and expires_at %}
+    <script>
+    (function() {
+        // expires_at is a UNIX timestamp (seconds)
+        var expiresAt = Number("{{ expires_at|default(0) }}");
+        if (expiresAt > 0) {
+            var now = Math.floor(Date.now() / 1000);
+            var timeout = (expiresAt - now) * 1000;
+            if (timeout > 0) {
+                setTimeout(function() {
+                    window.location.reload(true);
+                }, timeout + 500); // Add a small buffer
+            } else {
+                window.location.reload(true);
+            }
+        }
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>
