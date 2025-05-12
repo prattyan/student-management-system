@@ -7,6 +7,9 @@ from authlib.integrations.flask_client import OAuth
 from pymongo import MongoClient
 from io import BytesIO
 from flask import send_file
+import uuid
+import time
+import threading
 app = Flask(__name__)
 app.secret_key = 'secret_key'
 UPLOAD_FOLDER = 'static/uploads'
@@ -73,22 +76,16 @@ def upload_profile_pic():
 
     file = request.files['file']
     if file and allowed_file(file.filename):
-        # Rename the file to the student's ID
         student_id = session['student_id']
-        file_extension = file.filename.rsplit('.', 1)[1].lower()  # Get the file extension
-        filename = f"{student_id}.{file_extension}"  # Rename file to student ID with extension
+        file_extension = file.filename.rsplit('.', 1)[1].lower()  
+        filename = f"{student_id}.{file_extension}"  
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        # Debugging: Print values
         print(f"Student ID: {student_id}")
         print(f"File Extension: {file_extension}")
         print(f"Filename: {filename}")
         print(f"File Path: {file_path}")
-
-        # Save the file
         file.save(file_path)
 
-        # Update the student's profile picture in the database
         conn = get_db_connection()
         conn.execute('''
             UPDATE students
@@ -197,32 +194,64 @@ def login():
 
         conn = get_db_connection()
         student = conn.execute('SELECT * FROM students WHERE email = ?', (email,)).fetchone()
-        conn.close()
 
-        # After successful login, set student_profile_pic in session
         if student and check_password_hash(student['password'], password):
+            # Check if already logged in elsewhere
+            if student['session_token']:
+                flash('You are already logged in from another device. Please logout first.', 'danger')
+                conn.close()
+                return redirect(url_for('login'))
+
+            # Generate a new session token
+            session_token = str(uuid.uuid4())
+            conn.execute('UPDATE students SET session_token = ? WHERE id = ?', (session_token, student['id']))
+            conn.commit()
+            conn.close()
+
+            # Set session variables
             session['student_id'] = student['id']
             session['student_name'] = student['name']
             session['student_email'] = student['email']
             session['student_phone'] = student['phone']
             session['student_roll_number'] = student['roll_number']
             session['student_department'] = student['department']
-            session['student_profile_pic'] = student['profile_pic'] if student['profile_pic'] else 'default.png'  # <-- Add this line
-            session['admin'] = (email == 'admin@example.com')  # Replace with your admin email
+            session['student_profile_pic'] = student['profile_pic'] if student['profile_pic'] else 'default.png'
+            session['admin'] = (email == 'admin@example.com')
             session['role'] = 'admin' if session['admin'] else 'student'
+            session['session_token'] = session_token
+            session['expires_at'] = int(time.time()) + 100  # 10 seconds from now
 
             if session['admin']:
                 return redirect(url_for('admin_dashboard'))
             return redirect(url_for('dashboard'))
         else:
+            conn.close()
             flash('Invalid Credentials', 'danger')
 
     return render_template('login.html')
 
+def is_session_valid():
+    import time
+    if 'student_id' not in session or 'session_token' not in session:
+        return False
+    # Check if session expired
+    if 'expires_at' not in session or int(time.time()) > session['expires_at']:
+        # Clear session_token in DB on expiry
+        conn = get_db_connection()
+        conn.execute('UPDATE students SET session_token = NULL WHERE id = ?', (session['student_id'],))
+        conn.commit()
+        conn.close()
+        session.clear()
+        return False
+    conn = get_db_connection()
+    student = conn.execute('SELECT session_token FROM students WHERE id = ?', (session['student_id'],)).fetchone()
+    conn.close()
+    return student and student['session_token'] == session['session_token']
+
 @app.route('/dashboard')
 def dashboard():
-    if 'student_id' not in session:
-        flash('Please log in to access the dashboard.', 'danger')
+    if not is_session_valid():
+        flash('Session expired or logged in elsewhere.', 'danger')
         return redirect(url_for('login'))
 
     conn = get_db_connection()
@@ -359,6 +388,11 @@ def delete_student(id):
 
 @app.route('/logout')
 def logout():
+    if 'student_id' in session:
+        conn = get_db_connection()
+        conn.execute('UPDATE students SET session_token = NULL WHERE id = ?', (session['student_id'],))
+        conn.commit()
+        conn.close()
     session.clear()
     flash('Logged out successfully.', 'success')
     return redirect(url_for('login'))
@@ -674,6 +708,24 @@ def add_cache_control_headers(response):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+import threading
+import time
+
+def clear_all_session_tokens_periodically():
+    while True:
+        time.sleep(120)  # 2 minutes in seconds
+        try:
+            conn = get_db_connection()
+            conn.execute('UPDATE students SET session_token = NULL')
+            conn.commit()
+            conn.close()
+            print("All session tokens cleared.")
+        except Exception as e:
+            print("Error clearing session tokens:", e)
+
+# Start the background thread
+threading.Thread(target=clear_all_session_tokens_periodically, daemon=True).start()
 
 if __name__ == '__main__':
     init_db()
