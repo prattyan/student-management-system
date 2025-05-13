@@ -17,7 +17,8 @@
                     <img src="{{ url_for('static', filename='uploads/' + student.profile_pic) }}" 
                          alt="Profile Picture" 
                          class="img-thumbnail rounded-circle mb-3" 
-                         style="width: 150px; height: 150px;">
+                         style="width: 150px; height: 150px; cursor:pointer;"
+                         data-bs-toggle="modal" data-bs-target="#profilePicModal">
                     <h5 class="card-title text-primary">{{ student.name }}</h5>
                     <p class="text-muted">{{ student.email }}</p>
                     <p class="text-secondary"><i class="fa fa-id-badge me-2"></i>{{ student.roll_number }}</p>
@@ -60,16 +61,32 @@
                 </div>
             </div>
         </div>
-    
-
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <i class="fa fa-id-card fa-3x text-info mb-3"></i>
                     <h5 class="card-title">Admit Card</h5>
                     <p class="card-text text-muted">Download your exam admit card.</p>
-                    {% if admit_card_available %}
+                    {% if student.exam_fee_paid and admit_card_available %}
                         <a href="{{ url_for('admit_card') }}" class="btn btn-info btn-sm">View Admit Card</a>
+                    {% elif not student.exam_fee_paid %}
+                        <button class="btn btn-secondary btn-sm disabled">Pay Exam Fees to Access</button>
+                    {% else %}
+                        <button class="btn btn-secondary btn-sm disabled">Coming Soon</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <i class="fa fa-credit-card fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Exam Fee Payment</h5>
+                    <p class="card-text text-muted">Pay your exam fees online.</p>
+                    {% if exam_fee_payment_open %}
+                        <a href="{{ url_for('pay_exam_fees') }}" class="btn btn-success btn-sm">
+                            <i class="fa fa-money-bill"></i> Pay Now
+                        </a>
                     {% else %}
                         <button class="btn btn-secondary btn-sm" disabled>Coming Soon</button>
                     {% endif %}
@@ -77,6 +94,20 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Profile Picture Modal -->
+<div class="modal fade" id="profilePicModal" tabindex="-1" aria-labelledby="profilePicModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-transparent border-0">
+      <div class="modal-body text-center">
+        <img src="{{ url_for('static', filename='uploads/' + student.profile_pic) }}" 
+             alt="Profile Picture Large" 
+             class="img-fluid rounded shadow"
+             style="max-width: 90vw; max-height: 80vh;">
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Add Custom Styles -->

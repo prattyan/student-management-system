@@ -25,14 +25,13 @@ from fpdf import FPDF
 @app.route('/export_all_admit_cards')
 def export_all_admit_cards():
     from fpdf import FPDF
-    import os
 
     export_dir = os.path.join('static', 'admit_cards')
     os.makedirs(export_dir, exist_ok=True)
     uploads_dir = os.path.join('static', 'uploads')
     logo_path = os.path.join('static', 'logo.png') 
     conn = get_db_connection()
-    students = conn.execute('SELECT * FROM students').fetchall()
+    students = conn.execute('SELECT * FROM students').fetchall()  # All students
     conn.close()
     exam_settings = get_exam_settings()
     for student in students:
@@ -94,8 +93,9 @@ def export_all_admit_cards():
         pdf.cell(0, 10, "Signature of Controller of Examinations", ln=1, align='R')
         file_path = os.path.join(export_dir, f"admit_card_{student['id']}.pdf")
         pdf.output(file_path)
-    flash('All admit cards exported successfully!', 'success')
+    flash('All Admit cards exported', 'success')
     return redirect(url_for('admin_dashboard'))
+
 @app.route('/export_all_profiles')
 def export_all_profiles():
     from fpdf import FPDF
@@ -168,8 +168,9 @@ def export_all_profiles():
         pdf.set_font("Arial", '', 12)
         pdf.cell(0, 8, f"Math: {student['math_marks']}", ln=1, align='L')
         pdf.cell(0, 8, f"Science: {student['science_marks']}", ln=1, align='L')
-        pdf.cell(0, 8, f"History: {student['history_marks']}", ln=1, align='L')
         pdf.cell(0, 8, f"English: {student['english_marks']}", ln=1, align='L')
+        pdf.cell(0, 8, f"Social Science: {student['social_science_marks']}", ln=1, align='L')
+        pdf.cell(0, 8, f"2nd Language: {student['second_language_marks']}", ln=1, align='L')
 
         file_path = os.path.join(export_dir, f"profile_{student['id']}.pdf")
         pdf.output(file_path)
@@ -196,6 +197,10 @@ def download_admit_card(student_id):
     conn.close()
     if not student:
         flash('Student not found.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if not student['exam_fee_paid']:
+        flash('You must pay the exam fees to download your admit card.', 'warning')
         return redirect(url_for('dashboard'))
 
     exam_settings = get_exam_settings()
@@ -362,9 +367,12 @@ def init_db():
                 profile_pic TEXT DEFAULT 'default.png',
                 math_marks INTEGER DEFAULT 0,
                 science_marks INTEGER DEFAULT 0,
-                history_marks INTEGER DEFAULT 0,
+                social_science_marks INTEGER DEFAULT 0,
                 english_marks INTEGER DEFAULT 0,
-                session_token TEXT
+                second_language_marks INTEGER DEFAULT 0,
+                session_token TEXT,
+                exam_fee_paid INTEGER DEFAULT 0,
+                exam_fee_payment_time TEXT
             )
         ''')
         conn.execute('''
@@ -382,15 +390,11 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 exam_center TEXT DEFAULT 'Main Campus',
                 exam_date TEXT DEFAULT '01 June 2025',
-                reporting_time TEXT DEFAULT '09:00 AM'
+                reporting_time TEXT DEFAULT '09:00 AM',
+                exam_fee_payment_open INTEGER DEFAULT 0,
+                exam_fee INTEGER DEFAULT 1000
             )
         ''')
-        if not conn.execute('SELECT * FROM exam_settings').fetchone():
-            conn.execute('''
-                INSERT INTO exam_settings (exam_center, exam_date, reporting_time)
-                VALUES ('Main Campus', '01 June 2025', '09:00 AM')
-            ''')
-        conn.commit()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -433,22 +437,23 @@ def update_marks(id):
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (id,)).fetchone()
     if request.method == 'POST':
-        math_marks = request.form['math_marks']
-        science_marks = request.form['science_marks']
-        history_marks = request.form['history_marks']
-        english_marks = request.form['english_marks']
+        math_marks = int(request.form['math_marks'])
+        science_marks = int(request.form['science_marks'])
+        social_science_marks = int(request.form['social_science_marks'])
+        english_marks = int(request.form['english_marks'])
+        second_language_marks = int(request.form['second_language_marks'])
+
         conn.execute('''
             UPDATE students
-            SET math_marks = ?, science_marks = ?, history_marks = ?, english_marks = ?
+            SET math_marks = ?, science_marks = ?, social_science_marks = ?, english_marks = ?, second_language_marks = ?
             WHERE id = ?
-        ''', (math_marks, science_marks, history_marks, english_marks, id))
+        ''', (math_marks, science_marks, social_science_marks, english_marks, second_language_marks, id))
         conn.commit()
         conn.close()
         flash('Marks updated successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
     conn.close()
     return render_template('admin_update_marks.html', student=student)
-
 @app.route('/admin_dashboard')
 def admin_dashboard():
     if 'admin' not in session or not session['admin']:
@@ -456,15 +461,16 @@ def admin_dashboard():
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-    students = conn.execute('SELECT id, name, email, profile_pic FROM students WHERE email != "admin@example.com"').fetchall()
+    students = conn.execute('SELECT id, name, email, profile_pic, exam_fee_paid FROM students WHERE email != "admin@example.com"').fetchall()
     total_students = conn.execute('SELECT COUNT(*) AS total FROM students WHERE email != "admin@example.com"').fetchone()['total']
     avg_attendance = conn.execute('SELECT AVG(attended_classes * 100.0 / total_classes) AS avg_attendance FROM attendance WHERE total_classes > 0').fetchone()
     avg_marks = conn.execute('''
         SELECT 
             AVG(math_marks) AS math_avg, 
             AVG(science_marks) AS science_avg, 
-            AVG(history_marks) AS history_avg,
-            AVG(english_marks) AS english_avg
+            AVG(social_science_marks) AS social_science_avg,
+            AVG(english_marks) AS english_avg,
+            AVG(second_language_marks) AS second_language_avg
         FROM students 
         WHERE email != "admin@example.com"
     ''').fetchone()
@@ -474,13 +480,13 @@ def admin_dashboard():
     avg_marks = {
         'math_avg': avg_marks['math_avg'] if avg_marks and avg_marks['math_avg'] is not None else 0,
         'science_avg': avg_marks['science_avg'] if avg_marks and avg_marks['science_avg'] is not None else 0,
-        'history_avg': avg_marks['history_avg'] if avg_marks and avg_marks['history_avg'] is not None else 0,
-        'english_avg': avg_marks['english_avg'] if avg_marks and avg_marks['english_avg'] is not None else 0
+        'social_science_avg': avg_marks['social_science_avg'] if avg_marks and avg_marks['social_science_avg'] is not None else 0,
+        'english_avg': avg_marks['english_avg'] if avg_marks and avg_marks['english_avg'] is not None else 0,
+        'second_language_avg': avg_marks['second_language_avg'] if avg_marks and avg_marks['second_language_avg'] is not None else 0
     }
 
     students = [dict(student) for student in students]
     return render_template('admin_dashboard.html', students=students, total_students=total_students, avg_attendance=avg_attendance, avg_marks=avg_marks)
-
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -581,17 +587,12 @@ def is_session_valid():
 
 @app.route('/dashboard')
 def dashboard():
-    if not is_session_valid():
-        flash('Session expired or logged in elsewhere.', 'danger')
+    if 'student_id' not in session:
         return redirect(url_for('login'))
 
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (session['student_id'],)).fetchone()
     conn.close()
-
-    if not student:
-        flash('Student not found.', 'danger')
-        return redirect(url_for('login'))
 
     student_data = {
         'id': student['id'],
@@ -600,25 +601,33 @@ def dashboard():
         'phone': student['phone'],
         'roll_number': student['roll_number'],
         'department': student['department'],
-        'profile_pic': student['profile_pic'] if student['profile_pic'] else 'default.png'
+        'profile_pic': student['profile_pic'] if student['profile_pic'] else 'default.png',
+        'exam_fee_paid': student['exam_fee_paid']
     }
 
-    # Check if admit card PDF exists
-    admit_card_path = os.path.join('static', 'admit_cards', f"admit_card_{student['id']}.pdf")
-    admit_card_available = os.path.exists(admit_card_path)
+    exam_settings = get_exam_settings()
+    exam_fee_payment_open = exam_settings['exam_fee_payment_open'] if exam_settings else 0
+    admit_card_available = exam_settings['admit_card_available'] if exam_settings else 0
+    return render_template('dashboard.html', student=student_data, exam_fee_payment_open=exam_fee_payment_open, admit_card_available=admit_card_available)
 
-    # Check if profile PDF exists
-    profile_pdf_path = os.path.join('static', 'profiles', f"profile_{student['id']}.pdf")
-    profile_pdf_available = os.path.exists(profile_pdf_path)
+@app.route('/delete_all_admit_cards')
+def delete_all_admit_cards():
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('admin_dashboard'))
 
-    return render_template(
-        'dashboard.html',
-        student=student_data,
-        expires_at=session.get('expires_at', 0),
-        admit_card_available=admit_card_available,
-        profile_pdf_available=profile_pdf_available
-    )
-
+    admit_cards_dir = os.path.join('static', 'admit_cards')
+    deleted = 0
+    if os.path.exists(admit_cards_dir):
+        for filename in os.listdir(admit_cards_dir):
+            if filename.endswith('.pdf'):
+                try:
+                    os.remove(os.path.join(admit_cards_dir, filename))
+                    deleted += 1
+                except Exception:
+                    pass
+    flash(f'Deleted {deleted} admit card(s).', 'success')
+    return redirect(url_for('admin_dashboard'))
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
     if 'student_id' not in session:
@@ -749,7 +758,9 @@ def student_details():
         'department': student['department'],
         'math_marks': student['math_marks'],
         'science_marks': student['science_marks'],
-        'history_marks': student['history_marks'],
+        'social_science_marks': student['social_science_marks'],
+        'second_language_marks': student['second_language_marks'],
+        'english_marks': student['english_marks'],
         'profile_pic': student['profile_pic'] if student['profile_pic'] else 'default.png'
     }
 
@@ -758,6 +769,36 @@ def student_details():
     profile_pdf_available = os.path.exists(profile_pdf_path)
 
     return render_template('student_details.html', student=student_data, profile_pdf_available=profile_pdf_available)
+
+from datetime import datetime
+@app.route('/pay_exam_fees', methods=['GET', 'POST'])
+def pay_exam_fees():
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+
+    exam_settings = get_exam_settings()
+    if not exam_settings['exam_fee_payment_open']:
+        flash('Exam fee payment is currently closed. Please contact admin.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    fee = exam_settings['exam_fee'] if 'exam_fee' in exam_settings.keys() else 1000
+
+    if request.method == 'POST':
+        payment_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn = get_db_connection()
+        conn.execute('UPDATE students SET exam_fee_paid = 1, exam_fee_payment_time = ? WHERE id = ?', (payment_time, session['student_id']))
+        conn.commit()
+        conn.close()
+        flash('Exam fee payment successful!', 'success')
+        return redirect(url_for('pay_exam_fees'))
+
+    # Fetch payment status and time to show in template
+    conn = get_db_connection()
+    student = conn.execute('SELECT exam_fee_paid, exam_fee_payment_time FROM students WHERE id = ?', (session['student_id'],)).fetchone()
+    conn.close()
+    paid = student['exam_fee_paid']
+    payment_time = student['exam_fee_payment_time'] if student['exam_fee_payment_time'] else None
+    return render_template('pay_exam_fees.html', exam_fee_paid=paid, payment_time=payment_time, exam_fee=fee)
 
 @app.route('/attendance')
 def attendance():
@@ -835,31 +876,30 @@ def view_marks():
         else:
             return 'D'
 
-    def calculate_cgpa(math, science, history, english):
-        total_marks = math + science + history + english
-        max_marks = 400
-        percentage = (total_marks / max_marks) * 100
-        cgpa = percentage / 9.5
-        return round(cgpa, 2)
+    def calculate_cgpa(math, science, social_science, english, second_language):
+        return round((math + science + social_science + english + second_language) / 5 / 10, 2)
 
     marks_data = {
-        'math_marks': student['math_marks'],
-        'science_marks': student['science_marks'],
-        'history_marks': student['history_marks'],
-        'english_marks': student['english_marks'],
-        'grades': {
-            'math': calculate_grade(student['math_marks']),
-            'science': calculate_grade(student['science_marks']),
-            'history': calculate_grade(student['history_marks']),
-            'english': calculate_grade(student['english_marks'])
-        },
-        'cgpa': calculate_cgpa(
-            student['math_marks'],
-            student['science_marks'],
-            student['history_marks'],
-            student['english_marks']
-        )
-    }
+    'math_marks': student['math_marks'],
+    'science_marks': student['science_marks'],
+    'social_science_marks': student['social_science_marks'],
+    'english_marks': student['english_marks'],
+    'second_language_marks': student['second_language_marks'],
+    'grades': {
+        'math': calculate_grade(student['math_marks']),
+        'science': calculate_grade(student['science_marks']),
+        'social_science': calculate_grade(student['social_science_marks']),
+        'english': calculate_grade(student['english_marks']),
+        'second_language': calculate_grade(student['second_language_marks'])
+    },
+    'cgpa': calculate_cgpa(
+        student['math_marks'],
+        student['science_marks'],
+        student['social_science_marks'],
+        student['english_marks'],
+        student['second_language_marks']
+    )
+}
 
     return render_template('view_marks.html', marks=marks_data)
 
@@ -1006,6 +1046,11 @@ def admit_card():
         flash('Please login to view admit card.', 'danger')
         return redirect(url_for('login'))
 
+    exam_settings = get_exam_settings()
+    if not exam_settings['admit_card_available']:
+        flash('Admit card download is currently disabled by admin.', 'warning')
+        return redirect(url_for('dashboard'))
+
     conn = get_db_connection()
     student = conn.execute('SELECT * FROM students WHERE id = ?', (session['student_id'],)).fetchone()
     conn.close()
@@ -1014,13 +1059,32 @@ def admit_card():
         flash('Student not found.', 'danger')
         return redirect(url_for('login'))
 
-    # Convert sqlite3.Row to dict for attribute access in Jinja2
-    student = dict(student)
+    if not student['exam_fee_paid']:
+        flash('You must pay the exam fees to access your admit card.', 'warning')
+        return redirect(url_for('dashboard'))
 
     exam_settings = get_exam_settings()
+    admit_card_pdf_path = os.path.join('static', 'admit_cards', f"admit_card_{student['id']}.pdf")
+    admit_card_pdf_exists = os.path.exists(admit_card_pdf_path)
 
-    return render_template('admit_card.html', student=student, exam_settings=exam_settings)
+    return render_template(
+        'admit_card.html',
+        student=student,
+        exam_settings=exam_settings,
+        admit_card_pdf_exists=admit_card_pdf_exists
+    )
+@app.route('/clear_all_exam_fee_payments')
+def clear_all_exam_fee_payments():
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('admin_dashboard'))
 
+    conn = get_db_connection()
+    conn.execute('UPDATE students SET exam_fee_paid = 0, exam_fee_payment_time = NULL')
+    conn.commit()
+    conn.close()
+    flash('All exam fee payment records have been cleared.', 'success')
+    return redirect(url_for('admin_dashboard'))
 @app.route('/exam_settings', methods=['GET', 'POST'])
 def exam_settings():
     if 'admin' not in session or not session['admin']:
@@ -1034,12 +1098,18 @@ def exam_settings():
         exam_center = request.form['exam_center']
         exam_date = request.form['exam_date']
         reporting_time = request.form['reporting_time']
-        conn.execute('UPDATE exam_settings SET exam_center=?, exam_date=?, reporting_time=? WHERE id=?',
-                     (exam_center, exam_date, reporting_time, settings['id']))
+        exam_fee_payment_open = 1 if request.form.get('exam_fee_payment_open') == 'on' else 0
+        admit_card_available = 1 if request.form.get('admit_card_available') == 'on' else 0
+        exam_fee = int(request.form.get('exam_fee', 1000))
+
+        conn.execute('''
+            UPDATE exam_settings
+            SET exam_center = ?, exam_date = ?, reporting_time = ?, exam_fee_payment_open = ?, admit_card_available = ?, exam_fee = ?
+            WHERE id = ?
+        ''', (exam_center, exam_date, reporting_time, exam_fee_payment_open, admit_card_available, exam_fee, settings['id']))
         conn.commit()
-        conn.close()
         flash('Exam settings updated!', 'success')
-        return redirect(url_for('admin_dashboard'))
+        settings = conn.execute('SELECT * FROM exam_settings LIMIT 1').fetchone()
 
     conn.close()
     return render_template('exam_settings.html', settings=settings)
@@ -1062,7 +1132,7 @@ def delete_admit_card_pdf(student_id):
         flash('Access denied. Admins only.', 'danger')
         return redirect(url_for('admin_dashboard'))
     admit_card_path = os.path.join('static', 'admit_cards', f"admit_card_{student_id}.pdf")
-    if os.path.exists(admit_card_path):
+    if (os.path.exists(admit_card_path)):
         os.remove(admit_card_path)
         flash('Admit card PDF deleted.', 'success')
     else:
@@ -1075,7 +1145,7 @@ def delete_profile_pdf(student_id):
         flash('Access denied. Admins only.', 'danger')
         return redirect(url_for('admin_dashboard'))
     profile_pdf_path = os.path.join('static', 'profiles', f"profile_{student_id}.pdf")
-    if os.path.exists(profile_pdf_path):
+    if (os.path.exists(profile_pdf_path)):
         os.remove(profile_pdf_path)
         flash('Profile PDF deleted.', 'success')
     else:

@@ -27,15 +27,14 @@
                     <div class="row">
                         <div class="col"><span class="badge bg-primary">Math: {{ avg_marks.math_avg | round(2) }}</span></div>
                         <div class="col"><span class="badge bg-success">Science: {{ avg_marks.science_avg | round(2) }}</span></div>
-                        <div class="col"><span class="badge bg-warning text-dark">History: {{ avg_marks.history_avg | round(2) }}</span></div>
+                        <div class="col"><span class="badge bg-warning text-dark">Social Science: {{ avg_marks.social_science_avg | round(2) }}</span></div>
                         <div class="col"><span class="badge bg-info text-dark">English: {{ avg_marks.english_avg | round(2) }}</span></div>
+                        <div class="col"><span class="badge bg-secondary text-dark">2nd Language: {{ avg_marks.second_language_avg | round(2) }}</span></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-
 
     <div class="table-responsive shadow-sm">
         <table class="table table-hover align-middle">
@@ -45,6 +44,7 @@
                     <th>ID</th>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Exam Fee Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -60,6 +60,13 @@
                     <td>{{ student['id'] }}</td>
                     <td>{{ student['name'] }}</td>
                     <td>{{ student['email'] }}</td>
+                    <td>
+                        {% if student['exam_fee_paid'] %}
+                            <span class="badge bg-success">Paid</span>
+                        {% else %}
+                            <span class="badge bg-danger">Not Paid</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <a href="{{ url_for('update_marks', id=student['id']) }}" class="btn btn-warning btn-sm" title="Update Marks"><i class="fa fa-pen"></i></a>
                         <a href="{{ url_for('update_attendance', id=student['id']) }}" class="btn btn-info btn-sm" title="Update Attendance"><i class="fa fa-calendar-check"></i></a>

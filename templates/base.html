@@ -79,12 +79,21 @@
             <a class="nav-link text-white rounded mb-1" href="{{ url_for('export_all_admit_cards') }}">
                 <i class="fa fa-id-card me-2"></i> Export All Admit Cards
             </a>
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('delete_all_admit_cards') }}"
+                onclick="return confirm('Are you sure you want to delete ALL admit cards?');">
+                <i class="fa fa-trash me-2"></i> Delete All Admit Cards
+            </a>
             <a class="nav-link text-white rounded mb-1" href="{{ url_for('export_all_profiles') }}">
                 <i class="fa fa-user me-2"></i> Export All Profiles
+            </a>
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('clear_all_exam_fee_payments') }}"
+               onclick="return confirm('Are you sure you want to clear ALL exam fee payment records?');">
+                <i class="fa fa-money-bill-wave me-2"></i> Clear All Exam Fee Payments
             </a>
             <a class="nav-link text-white rounded mb-1" href="{{ url_for('exam_settings') }}">
                 <i class="fa fa-cog me-2"></i> Exam Settings
             </a>
+            
         </nav>
     </div>
     {% endif %}

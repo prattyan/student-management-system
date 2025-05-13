@@ -16,6 +16,20 @@
             <label class="form-label">Reporting Time</label>
             <input type="text" class="form-control" name="reporting_time" value="{{ settings.reporting_time }}" required>
         </div>
+        <div class="mb-3">
+            <label class="form-label">Examination Fee (₹)</label>
+            <input type="number" class="form-control" name="exam_fee" value="{{ settings.exam_fee or 1000 }}" min="0" required>
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="exam_fee_payment_open" name="exam_fee_payment_open"
+                   {% if settings.exam_fee_payment_open %}checked{% endif %}>
+            <label class="form-check-label" for="exam_fee_payment_open">Allow Exam Fee Payment</label>
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="admit_card_available" name="admit_card_available"
+                {% if settings.admit_card_available %}checked{% endif %}>
+        <label class="form-check-label" for="admit_card_available">Allow Admit Card Download</label>
+        </div>
         <button type="submit" class="btn btn-primary">Save Settings</button>
     </form>
 </div>
