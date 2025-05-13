@@ -13,13 +13,13 @@ UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit upload size to 16MB
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  
 app.config['SESSION_COOKIE_NAME'] = 'session_cookie'
-app.config['SESSION_COOKIE_SECURE'] = True  # Use HTTPS for cookies
-app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF in cross-site requests
-app.config['SESSION_PERMANENT'] = False  # Session will not persist after browser is closed
-app.config['SESSION_USE_SIGNER'] = True  # Sign the session cookie to prevent tampering
+app.config['SESSION_COOKIE_SECURE'] = True  
+app.config['SESSION_COOKIE_HTTPONLY'] = True  
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  
+app.config['SESSION_PERMANENT'] = False  
+app.config['SESSION_USE_SIGNER'] = True  
 from fpdf import FPDF
 
 @app.route('/export_all_admit_cards')
@@ -30,29 +30,21 @@ def export_all_admit_cards():
     export_dir = os.path.join('static', 'admit_cards')
     os.makedirs(export_dir, exist_ok=True)
     uploads_dir = os.path.join('static', 'uploads')
-    logo_path = os.path.join('static', 'logo.png')  # Optional: add your logo here
-
+    logo_path = os.path.join('static', 'logo.png') 
     conn = get_db_connection()
     students = conn.execute('SELECT * FROM students').fetchall()
     conn.close()
-
     exam_settings = get_exam_settings()
-
     for student in students:
         pdf = FPDF()
         pdf.add_page()
-        # Luxury border
         pdf.set_line_width(1.5)
-        pdf.set_draw_color(44, 62, 80)  # Dark blue
+        pdf.set_draw_color(44, 62, 80)
         pdf.rect(5, 5, 200, 287)
-
-        # Heading
         pdf.set_xy(10, 30)
         pdf.set_font("Arial", 'B', 22)
         pdf.set_text_color(44, 62, 80)
         pdf.cell(190, 15, "ADMIT CARD", ln=True, align='C')
-
-        # Student Picture
         profile_pic = student['profile_pic'] if student['profile_pic'] else 'default.png'
         pic_path = os.path.join(uploads_dir, profile_pic)
         if not os.path.exists(pic_path):
@@ -60,38 +52,30 @@ def export_all_admit_cards():
         try:
             pdf.image(pic_path, x=150, y=30, w=35, h=35)
         except:
-            pass  # If image fails, continue
-
-        # Student Info (luxury layout, left-aligned)
+            pass
         pdf.set_xy(10, 80)
         pdf.set_font("Arial", 'B', 14)
         pdf.set_text_color(52, 73, 94)
         pdf.cell(50, 10, "Name:", ln=0)
         pdf.set_font("Arial", '', 14)
         pdf.cell(0, 10, f"{student['name']}", ln=1)
-
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(50, 10, "Roll Number:", ln=0)
         pdf.set_font("Arial", '', 14)
         pdf.cell(0, 10, f"{student['roll_number']}", ln=1)
-
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(50, 10, "Department:", ln=0)
         pdf.set_font("Arial", '', 14)
         pdf.cell(0, 10, f"{student['department']}", ln=1)
-
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(50, 10, "Email:", ln=0)
         pdf.set_font("Arial", '', 14)
         pdf.cell(0, 10, f"{student['email']}", ln=1)
-
         pdf.ln(5)
         pdf.set_draw_color(127, 140, 141)
         pdf.set_line_width(0.5)
         pdf.line(20, pdf.get_y(), 190, pdf.get_y())
         pdf.ln(5)
-
-        # Exam Info
         pdf.set_font("Arial", 'B', 13)
         pdf.set_text_color(41, 128, 185)
         pdf.cell(0, 10, "Exam Details", ln=1, align='L')
@@ -100,30 +84,22 @@ def export_all_admit_cards():
         pdf.cell(0, 8, f"Exam Center: {exam_settings['exam_center']}", ln=1, align='L')
         pdf.cell(0, 8, f"Date: {exam_settings['exam_date']}", ln=1, align='L')
         pdf.cell(0, 8, f"Reporting Time: {exam_settings['reporting_time']}", ln=1, align='L')
-
-        # Signature section
         signature_path = os.path.join('static', 'signature.png')
         if os.path.exists(signature_path):
-            # Place the signature image above the signature text
             pdf.image(signature_path, x=140, y=pdf.get_y(), w=50, h=20)
-            pdf.ln(18)  # Move below the image
-
+            pdf.ln(18) 
         pdf.set_font("Arial", 'I', 12)
         pdf.set_draw_color(44, 62, 80)
         pdf.line(140, pdf.get_y(), 200, pdf.get_y())
         pdf.cell(0, 10, "Signature of Controller of Examinations", ln=1, align='R')
-
         file_path = os.path.join(export_dir, f"admit_card_{student['id']}.pdf")
         pdf.output(file_path)
-
     flash('All admit cards exported successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
-
 @app.route('/export_all_profiles')
 def export_all_profiles():
     from fpdf import FPDF
     import os
-
     export_dir = os.path.join('static', 'profiles')
     os.makedirs(export_dir, exist_ok=True)
     uploads_dir = os.path.join('static', 'uploads')
@@ -537,6 +513,8 @@ def register():
 
     return render_template('register.html')
 
+import uuid
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -555,20 +533,26 @@ def login():
             session['student_roll_number'] = student['roll_number']
             session['student_department'] = student['department']
             session['student_profile_pic'] = student['profile_pic'] if student['profile_pic'] else 'default.png'
+
+            # Generate a new session token and store it
+            session_token = str(uuid.uuid4())
+            session['session_token'] = session_token
+            # Set session expiry (e.g., 1 hour)
+            import time
+            session['expires_at'] = int(time.time()) + 120
+
+            conn.execute('UPDATE students SET session_token = ? WHERE id = ?', (session_token, student['id']))
+            conn.commit()
+
             # Admin login
             if student['email'] == 'admin@example.com':
                 session['admin'] = True
+                conn.close()
+                return redirect(url_for('admin_dashboard'))
             else:
                 session['admin'] = False
-            # Session token and expiry
-            session_token = os.urandom(24).hex()
-            expires_at = int(time.time()) + 3600  # 1 hour session
-            session['session_token'] = session_token
-            session['expires_at'] = expires_at
-            conn.execute('UPDATE students SET session_token = ? WHERE id = ?', (session_token, student['id']))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('dashboard'))
+                conn.close()
+                return redirect(url_for('dashboard'))
         else:
             flash('Invalid email or password.', 'danger')
             if conn:
@@ -578,6 +562,9 @@ def login():
     return render_template('login.html')
 
 def is_session_valid():
+    # If admin, always valid
+    if session.get('admin'):
+        return True
     if 'student_id' not in session or 'session_token' not in session:
         return False
     if 'expires_at' not in session or int(time.time()) > session['expires_at']:
@@ -703,21 +690,34 @@ def admin():
 def delete_student(id):
     if 'admin' not in session or not session['admin']:
         flash('Access denied. Admins only.', 'danger')
-        return redirect(url_for('login'))
-
+        return redirect(url_for('admin_dashboard'))
     conn = get_db_connection()
     student = conn.execute('SELECT profile_pic FROM students WHERE id = ?', (id,)).fetchone()
-    if student and student['profile_pic'] != 'default.png':
-        profile_pic_path = os.path.join(app.config['UPLOAD_FOLDER'], student['profile_pic'])
-        if os.path.exists(profile_pic_path):
-            os.remove(profile_pic_path)
 
+    # Delete profile picture if not default
+    if student and student['profile_pic'] and student['profile_pic'] != 'default.png':
+        pic_path = os.path.join(app.config['UPLOAD_FOLDER'], student['profile_pic'])
+        if os.path.exists(pic_path):
+            os.remove(pic_path)
+
+    # Delete admit card PDF
+    admit_card_path = os.path.join('static', 'admit_cards', f"admit_card_{id}.pdf")
+    if os.path.exists(admit_card_path):
+        os.remove(admit_card_path)
+
+    # Delete profile PDF
+    profile_pdf_path = os.path.join('static', 'profiles', f"profile_{id}.pdf")
+    if os.path.exists(profile_pdf_path):
+        os.remove(profile_pdf_path)
+
+    # Delete attendance records
     conn.execute('DELETE FROM attendance WHERE student_id = ?', (id,))
+    # Delete student record
     conn.execute('DELETE FROM students WHERE id = ?', (id,))
     conn.commit()
     conn.close()
 
-    flash('Student and their profile picture deleted successfully.', 'success')
+    flash('Student and all their data deleted successfully.', 'success')
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/logout')
@@ -752,7 +752,12 @@ def student_details():
         'history_marks': student['history_marks'],
         'profile_pic': student['profile_pic'] if student['profile_pic'] else 'default.png'
     }
-    return render_template('student_details.html', student=student_data)
+
+    # Check if profile PDF exists
+    profile_pdf_path = os.path.join('static', 'profiles', f"profile_{student['id']}.pdf")
+    profile_pdf_available = os.path.exists(profile_pdf_path)
+
+    return render_template('student_details.html', student=student_data, profile_pdf_available=profile_pdf_available)
 
 @app.route('/attendance')
 def attendance():
@@ -799,7 +804,7 @@ def update_attendance(id):
             ''', (total_classes, attended_classes, id))
         else:
             conn.execute('''
-                INSERT INTO attendance (student_id, total_classes, attended_classes)
+                INSERT INTO attendance (student_id, class_id, total_classes, attended_classes)
                 VALUES (?, ?, ?)
             ''', (id, total_classes, attended_classes))
 
@@ -1051,7 +1056,31 @@ def add_cache_control_headers(response):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+@app.route('/delete_admit_card_pdf/<int:student_id>')
+def delete_admit_card_pdf(student_id):
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    admit_card_path = os.path.join('static', 'admit_cards', f"admit_card_{student_id}.pdf")
+    if os.path.exists(admit_card_path):
+        os.remove(admit_card_path)
+        flash('Admit card PDF deleted.', 'success')
+    else:
+        flash('Admit card PDF not found.', 'warning')
+    return redirect(url_for('admin_dashboard'))
 
+@app.route('/delete_profile_pdf/<int:student_id>')
+def delete_profile_pdf(student_id):
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    profile_pdf_path = os.path.join('static', 'profiles', f"profile_{student_id}.pdf")
+    if os.path.exists(profile_pdf_path):
+        os.remove(profile_pdf_path)
+        flash('Profile PDF deleted.', 'success')
+    else:
+        flash('Profile PDF not found.', 'warning')
+    return redirect(url_for('admin_dashboard'))
 @app.route('/clear_session')
 def clear_session():
     if 'student_id' in session:

@@ -63,6 +63,8 @@
                     <td>
                         <a href="{{ url_for('update_marks', id=student['id']) }}" class="btn btn-warning btn-sm" title="Update Marks"><i class="fa fa-pen"></i></a>
                         <a href="{{ url_for('update_attendance', id=student['id']) }}" class="btn btn-info btn-sm" title="Update Attendance"><i class="fa fa-calendar-check"></i></a>
+                        <a href="{{ url_for('delete_admit_card_pdf', student_id=student['id']) }}" class="btn btn-outline-danger btn-sm" title="Delete Admit Card PDF" onclick="return confirm('Delete admit card PDF for this student?');"><i class="fa fa-id-card"></i></a>
+                        <a href="{{ url_for('delete_profile_pdf', student_id=student['id']) }}" class="btn btn-outline-danger btn-sm" title="Delete Profile PDF" onclick="return confirm('Delete profile PDF for this student?');"><i class="fa fa-file-pdf"></i></a>
                         <a href="{{ url_for('delete_student', id=student['id']) }}" class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Are you sure you want to delete this student?');"><i class="fa fa-trash"></i></a>
                     </td>
                 </tr>
