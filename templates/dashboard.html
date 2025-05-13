@@ -69,6 +69,10 @@
                     <p class="card-text text-muted">Download your exam admit card.</p>
                     {% if student.exam_fee_paid and admit_card_available %}
                         <a href="{{ url_for('admit_card') }}" class="btn btn-info btn-sm">View Admit Card</a>
+                    {% elif student.exam_fee_paid and not admit_card_available %}
+                        <button class="btn btn-secondary btn-sm disabled">Admit Card Not Available</button>
+                    {% elif not admit_card_available %}
+                        <button class="btn btn-secondary btn-sm disabled">Coming Soon</button>
                     {% elif not student.exam_fee_paid %}
                         <button class="btn btn-secondary btn-sm disabled">Pay Exam Fees to Access</button>
                     {% else %}
@@ -90,6 +94,18 @@
                     {% else %}
                         <button class="btn btn-secondary btn-sm" disabled>Coming Soon</button>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <i class="fa fa-envelope fa-3x text-danger mb-3"></i>
+                    <h5 class="card-title">Contact Admin</h5>
+                    <p class="card-text text-muted">Need help? Send a message to the admin.</p>
+                    <a href="{{ url_for('contact_admin') }}" class="btn btn-danger btn-sm">
+                        <i class="fa fa-paper-plane"></i> Contact Admin
+                    </a>
                 </div>
             </div>
         </div>

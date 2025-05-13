@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Contact Admin{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body">
+                    <h2 class="mb-4 text-danger"><i class="fa fa-envelope"></i> Contact Admin</h2>
+                    <form method="POST">
+                        <div class="mb-3">
+                            <textarea class="form-control" name="message" rows="4" placeholder="Type your message..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="fa fa-paper-plane"></i> Send Message
+                        </button>
+                    </form>
+                    <hr>
+                    <h5 class="mt-4 mb-2">Your Previous Messages</h5>
+                    {% for msg in messages %}
+                        <div class="border rounded p-2 mb-2 text-start">
+                            <div><strong>You:</strong> {{ msg['message'] }}</div>
+                            <div class="text-muted small">{{ msg['created_at'] }}</div>
+                            {% if msg['reply'] %}
+                                <div class="mt-2"><strong>Admin Reply:</strong> {{ msg['reply'] }}</div>
+                                <div class="text-muted small">{{ msg['replied_at'] }}</div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="text-muted">No messages yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

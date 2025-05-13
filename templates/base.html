@@ -90,10 +90,13 @@
                onclick="return confirm('Are you sure you want to clear ALL exam fee payment records?');">
                 <i class="fa fa-money-bill-wave me-2"></i> Clear All Exam Fee Payments
             </a>
+            
+            <a class="nav-link text-white rounded mb-1" href="{{ url_for('admin_messages') }}">
+                <i class="fa fa-envelope me-2"></i> Student Messages
+            </a>
             <a class="nav-link text-white rounded mb-1" href="{{ url_for('exam_settings') }}">
                 <i class="fa fa-cog me-2"></i> Exam Settings
             </a>
-            
         </nav>
     </div>
     {% endif %}

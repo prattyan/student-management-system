@@ -4,36 +4,62 @@
 {% set fee = exam_fee if exam_fee is defined else 1000 %}
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow-lg">
+        <div class="col-md-7 col-lg-6">
+            <div class="card shadow-lg border-0">
                 <div class="card-body text-center">
-                    <h3 class="mb-4 text-success"><i class="fa fa-credit-card"></i> Pay Exam Fees</h3>
+                    <h2 class="mb-4 text-success"><i class="fa fa-credit-card"></i> Exam Fee Payment</h2>
+                    <p class="text-muted mb-4">Please pay your examination fees online to access your admit card.</p>
                     {% if exam_fee_paid %}
-                        <div class="alert alert-success">
-                            <i class="fa fa-check-circle"></i> You have already paid the exam fees.
+                        <div class="alert alert-success mb-4">
+                            <i class="fa fa-check-circle"></i> <strong>Payment Received!</strong> You have already paid the exam fees.
                         </div>
                         <div class="border rounded p-3 my-3 bg-light text-start">
                             <h5 class="text-success mb-2"><i class="fa fa-receipt"></i> Payment Receipt</h5>
-                            <p><strong>Student Name:</strong> {{ session['student_name'] }}</p>
-                            <p><strong>Roll Number:</strong> {{ session['student_roll_number'] }}</p>
-                            <p><strong>Department:</strong> {{ session['student_department'] }}</p>
-                            <p><strong>Amount Paid:</strong> ₹ {{ fee }}</p>
-                            <p><strong>Status:</strong> <span class="badge bg-success">Paid</span></p>
-                            <p><strong>Payment Date & Time:</strong> {{ payment_time if payment_time else "N/A" }}</p>
-                        </div>
-                    {% else %}
-                        <form method="POST">
-                            <div class="mb-3">
-                                <label class="form-label">Amount</label>
-                                <input type="text" class="form-control text-center" value="₹ {{ fee }}" readonly>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Student Name:</strong></div>
+                                <div class="col-6">{{ session['student_name'] }}</div>
                             </div>
-                            <button type="submit" class="btn btn-success w-100">Pay Now</button>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Roll Number:</strong></div>
+                                <div class="col-6">{{ session['student_roll_number'] }}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Department:</strong></div>
+                                <div class="col-6">{{ session['student_department'] }}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Amount Paid:</strong></div>
+                                <div class="col-6">₹ {{ fee }}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Status:</strong></div>
+                                <div class="col-6"><span class="badge bg-success">Paid</span></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Payment Date & Time:</strong></div>
+                                <div class="col-6">{{ payment_time if payment_time else "N/A" }}</div>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary mt-3">
+                            <i class="fa fa-home"></i> Return to Home
+                        </a>
+                    {% else %}
+                        <form method="POST" class="mb-3">
+                            <div class="mb-4">
+                                <label class="form-label fs-5">Amount to Pay</label>
+                                <input type="text" class="form-control text-center fs-4 fw-bold" value="₹ {{ fee }}" readonly>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100 py-2 fs-5">
+                                <i class="fa fa-money-bill"></i> Pay Now
+                            </button>
                         </form>
-                        <p class="mt-3 text-muted small">* Payment will be processed.</p>
+                        <div class="alert alert-info mt-3 small">
+                            <i class="fa fa-info-circle"></i> After successful payment, you will be able to download your admit card.
+                        </div>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary mt-3">
+                            <i class="fa fa-home"></i> Return to Home
+                        </a>
                     {% endif %}
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary mt-4">
-                        <i class="fa fa-home"></i> Return to Home
-                    </a>
                 </div>
             </div>
         </div>

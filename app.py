@@ -395,6 +395,18 @@ def init_db():
                 exam_fee INTEGER DEFAULT 1000
             )
         ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER,
+                student_name TEXT,
+                message TEXT,
+                reply TEXT,
+                created_at TEXT,
+                replied_at TEXT,
+                FOREIGN KEY (student_id) REFERENCES students (id)
+            )
+        ''')
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -432,6 +444,47 @@ def upload_profile_pic():
         flash('Invalid file type. Please upload a valid image.', 'danger')
         return redirect(url_for('dashboard'))
 
+@app.route('/contact_admin', methods=['GET', 'POST'])
+def contact_admin():
+    if 'student_id' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        message = request.form['message']
+        student_id = session['student_id']
+        student_name = session['student_name']
+        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn = get_db_connection()
+        conn.execute('INSERT INTO messages (student_id, student_name, message, created_at) VALUES (?, ?, ?, ?)',
+                     (student_id, student_name, message, created_at))
+        conn.commit()
+        conn.close()
+        flash('Your message has been sent to the admin.', 'success')
+        return redirect(url_for('dashboard'))
+
+    # Show previous messages and replies
+    conn = get_db_connection()
+    messages = conn.execute('SELECT * FROM messages WHERE student_id = ? ORDER BY created_at DESC', (session['student_id'],)).fetchall()
+    conn.close()
+    return render_template('contact_admin.html', messages=messages)
+@app.route('/admin_messages', methods=['GET', 'POST'])
+def admin_messages():
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    if request.method == 'POST':
+        reply = request.form['reply']
+        message_id = request.form['message_id']
+        replied_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute('UPDATE messages SET reply = ?, replied_at = ? WHERE id = ?', (reply, replied_at, message_id))
+        conn.commit()
+        flash('Reply sent.', 'success')
+
+    messages = conn.execute('SELECT * FROM messages ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return render_template('admin_messages.html', messages=messages)
 @app.route('/update_marks/<int:id>', methods=['GET', 'POST'])
 def update_marks(id):
     conn = get_db_connection()
@@ -608,8 +661,13 @@ def dashboard():
     exam_settings = get_exam_settings()
     exam_fee_payment_open = exam_settings['exam_fee_payment_open'] if exam_settings else 0
     admit_card_available = exam_settings['admit_card_available'] if exam_settings else 0
-    return render_template('dashboard.html', student=student_data, exam_fee_payment_open=exam_fee_payment_open, admit_card_available=admit_card_available)
 
+    return render_template(
+        'dashboard.html',
+        student=student_data,
+        exam_fee_payment_open=exam_fee_payment_open,
+        admit_card_available=admit_card_available
+    )
 @app.route('/delete_all_admit_cards')
 def delete_all_admit_cards():
     if 'admin' not in session or not session['admin']:
