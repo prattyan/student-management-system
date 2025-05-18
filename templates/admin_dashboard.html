@@ -45,6 +45,10 @@
                     <th>Name</th>
                     <th>Email</th>
                     <th>Exam Fee Status</th>
+                    <th>Admit Card Export</th>
+                    <th>Profile Export</th>
+                    <th>Last Login</th>
+                    <th>Last Login IP</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -67,6 +71,22 @@
                             <span class="badge bg-danger">Not Paid</span>
                         {% endif %}
                     </td>
+                    <td>
+                        {% if student['admit_card_exported'] %}
+                            <span class="badge bg-success"><i class="fa fa-check"></i> Exported</span>
+                        {% else %}
+                            <span class="badge bg-secondary"><i class="fa fa-times"></i> Not Exported</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if student['profile_exported'] %}
+                            <span class="badge bg-success"><i class="fa fa-check"></i> Exported</span>
+                        {% else %}
+                            <span class="badge bg-secondary"><i class="fa fa-times"></i> Not Exported</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ student['last_login'] or 'Never' }}</td>
+                    <td>{{ student['last_login_ip'] or 'N/A' }}</td>
                     <td>
                         <a href="{{ url_for('update_marks', id=student['id']) }}" class="btn btn-warning btn-sm" title="Update Marks"><i class="fa fa-pen"></i></a>
                         <a href="{{ url_for('update_attendance', id=student['id']) }}" class="btn btn-info btn-sm" title="Update Attendance"><i class="fa fa-calendar-check"></i></a>

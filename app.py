@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 app.secret_key = 'secret_key'
@@ -22,6 +22,10 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_PERMANENT'] = False  
 app.config['SESSION_USE_SIGNER'] = True  
 from fpdf import FPDF
+
+def get_ist_now():
+    # IST is UTC+5:30
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
 @app.route('/export_all_admit_cards')
 def export_all_admit_cards():
@@ -373,7 +377,9 @@ def init_db():
                 second_language_marks INTEGER DEFAULT 0,
                 session_token TEXT,
                 exam_fee_paid INTEGER DEFAULT 0,
-                exam_fee_payment_time TEXT
+                exam_fee_payment_time TEXT,
+                last_login TEXT,
+                last_login_ip TEXT
             )
         ''')
         conn.execute('''
@@ -461,7 +467,7 @@ def contact_admin():
         message = request.form['message']
         student_id = session['student_id']
         student_name = session['student_name']
-        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        created_at = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
         conn = get_db_connection()
         conn.execute('INSERT INTO messages (student_id, student_name, message, created_at) VALUES (?, ?, ?, ?)',
                      (student_id, student_name, message, created_at))
@@ -522,7 +528,7 @@ def admin_dashboard():
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-    students = conn.execute('SELECT id, name, email, profile_pic, exam_fee_paid FROM students WHERE email != "admin@example.com"').fetchall()
+    students = conn.execute('SELECT id, name, email, profile_pic, exam_fee_paid, last_login, last_login_ip FROM students WHERE email != "admin@example.com"').fetchall()
     total_students = conn.execute('SELECT COUNT(*) AS total FROM students WHERE email != "admin@example.com"').fetchone()['total']
     avg_attendance = conn.execute('SELECT AVG(attended_classes * 100.0 / total_classes) AS avg_attendance FROM attendance WHERE total_classes > 0').fetchone()
     avg_marks = conn.execute('''
@@ -536,6 +542,19 @@ def admin_dashboard():
         WHERE email != "admin@example.com"
     ''').fetchone()
     conn.close()
+
+    # Check export status for each student
+    updated_students = []
+    for student in students:
+        s = dict(student)
+        student_id = s['id']
+        admit_card_path = os.path.join('static', 'admit_cards', f'admit_card_{student_id}.pdf')
+        profile_pdf_path = os.path.join('static', 'profiles', f'profile_{student_id}.pdf')
+        s['admit_card_exported'] = os.path.exists(admit_card_path)
+        s['profile_exported'] = os.path.exists(profile_pdf_path)
+        updated_students.append(s)
+
+    students = updated_students
 
     avg_attendance = avg_attendance['avg_attendance'] if avg_attendance and avg_attendance['avg_attendance'] is not None else 0
     avg_marks = {
@@ -587,12 +606,15 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-
         conn = get_db_connection()
         student = conn.execute('SELECT * FROM students WHERE email = ?', (email,)).fetchone()
 
         if student and check_password_hash(student['password'], password):
-            session.clear()
+            login_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+            login_ip = request.remote_addr
+            conn.execute('UPDATE students SET last_login = ?, last_login_ip = ? WHERE id = ?', (login_time, login_ip, student['id']))
+            conn.commit()
+            # ...existing session logic...
             session['student_id'] = student['id']
             session['student_name'] = student['name']
             session['student_email'] = student['email']
@@ -600,34 +622,18 @@ def login():
             session['student_roll_number'] = student['roll_number']
             session['student_department'] = student['department']
             session['student_profile_pic'] = student['profile_pic'] if student['profile_pic'] else 'default.png'
-
-            # Generate a new session token and store it
-            session_token = str(uuid.uuid4())
-            session['session_token'] = session_token
-            # Set session expiry (e.g., 1 hour)
-            import time
-            session['expires_at'] = int(time.time()) + 120
-
-            conn.execute('UPDATE students SET session_token = ? WHERE id = ?', (session_token, student['id']))
-            conn.commit()
-
-            # Admin login
-            if student['email'] == 'admin@example.com':
-                session['admin'] = True
-                conn.close()
+            session['admin'] = (student['email'] == 'admin@example.com')
+            conn.close()
+            if session['admin']:
+                flash('Admin login successful!', 'success')
                 return redirect(url_for('admin_dashboard'))
             else:
-                session['admin'] = False
-                conn.close()
+                flash('Login successful!', 'success')
                 return redirect(url_for('dashboard'))
         else:
+            conn.close()
             flash('Invalid email or password.', 'danger')
-            if conn:
-                conn.close()
-            return render_template('login.html')
-
     return render_template('login.html')
-
 def is_session_valid():
     # If admin, always valid
     if session.get('admin'):
@@ -872,7 +878,7 @@ def attendance():
 
     conn = get_db_connection()
     attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (session['student_id'],)).fetchone()
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = get_ist_now().strftime('%Y-%m-%d')
     attendance_log = conn.execute(
         'SELECT * FROM attendance_log WHERE student_id = ? AND date = ?',
         (session['student_id'], today)
@@ -1099,7 +1105,7 @@ def mark_attendance():
         flash('Please login to mark attendance.', 'danger')
         return redirect(url_for('login'))
 
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = get_ist_now().strftime('%Y-%m-%d')
     conn = get_db_connection()
     # Check if already marked today
     already_marked = conn.execute(
@@ -1254,6 +1260,10 @@ def clear_session():
     session.clear()
     flash('Session cleared successfully.', 'success')
     return redirect(url_for('login'))
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
 
 if __name__ == '__main__':
     init_db()
