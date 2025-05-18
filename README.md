@@ -85,7 +85,8 @@ student-database-system/
     ```
 
 5. **Access the app**
-    - Open your browser and go to [http://localhost:5000](http://localhost:5000)
+    - Open your browser and go to [https://prattyan.pythonanywhere.com/](https://prattyan.pythonanywhere.com/)
+    
 
 ---
 

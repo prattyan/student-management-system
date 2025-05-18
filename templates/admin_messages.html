@@ -10,7 +10,7 @@
                 <div class="text-muted small">{{ msg['created_at'] }}</div>
                 <div class="mt-2">{{ msg['message'] }}</div>
                 {% if msg['reply'] %}
-                    <div class="alert alert-success mt-3 mb-0">
+                    <div class="text-muted small">
                         <strong>Admin Reply:</strong> {{ msg['reply'] }}
                         <div class="text-muted small">{{ msg['replied_at'] }}</div>
                     </div>

@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from io import BytesIO
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'secret_key'
@@ -379,7 +380,6 @@ def init_db():
             CREATE TABLE IF NOT EXISTS attendance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 student_id INTEGER NOT NULL,
-                class_id INTEGER DEFAULT 1,
                 total_classes INTEGER DEFAULT 0,
                 attended_classes INTEGER DEFAULT 0,
                 FOREIGN KEY (student_id) REFERENCES students (id)
@@ -404,6 +404,14 @@ def init_db():
                 reply TEXT,
                 created_at TEXT,
                 replied_at TEXT,
+                FOREIGN KEY (student_id) REFERENCES students (id)
+            )
+        ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
                 FOREIGN KEY (student_id) REFERENCES students (id)
             )
         ''')
@@ -828,7 +836,6 @@ def student_details():
 
     return render_template('student_details.html', student=student_data, profile_pdf_available=profile_pdf_available)
 
-from datetime import datetime
 @app.route('/pay_exam_fees', methods=['GET', 'POST'])
 def pay_exam_fees():
     if 'student_id' not in session:
@@ -865,6 +872,11 @@ def attendance():
 
     conn = get_db_connection()
     attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (session['student_id'],)).fetchone()
+    today = datetime.now().strftime('%Y-%m-%d')
+    attendance_log = conn.execute(
+        'SELECT * FROM attendance_log WHERE student_id = ? AND date = ?',
+        (session['student_id'], today)
+    ).fetchone()
     conn.close()
 
     if attendance:
@@ -880,11 +892,17 @@ def attendance():
             'attendance_percentage': 0
         }
 
-    return render_template('attendance.html', attendance=attendance_data)
+    attendance_marked_today = attendance_log is not None
 
+    return render_template(
+        'attendance.html',
+        attendance=attendance_data,
+        attendance_marked_today=attendance_marked_today
+    )
 @app.route('/update_attendance/<int:id>', methods=['GET', 'POST'])
 def update_attendance(id):
     if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
         return redirect(url_for('login'))
 
     conn = get_db_connection()
@@ -903,7 +921,7 @@ def update_attendance(id):
             ''', (total_classes, attended_classes, id))
         else:
             conn.execute('''
-                INSERT INTO attendance (student_id, class_id, total_classes, attended_classes)
+                INSERT INTO attendance (student_id, total_classes, attended_classes)
                 VALUES (?, ?, ?)
             ''', (id, total_classes, attended_classes))
 
@@ -912,9 +930,12 @@ def update_attendance(id):
         flash('Attendance updated successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
 
+    attendance_data = {
+        'total_classes': attendance['total_classes'] if attendance else 0,
+        'attended_classes': attendance['attended_classes'] if attendance else 0
+    }
     conn.close()
-    return render_template('admin_update_attendance.html', student=student, attendance=attendance)
-
+    return render_template('admin_update_attendance.html', student=student, attendance=attendance_data)
 @app.route('/view_marks')
 def view_marks():
     if 'student_id' not in session:
@@ -1072,32 +1093,46 @@ def change_password():
 
     return render_template('change_password.html')
 
-@app.route('/mark_attendance/<int:class_id>', methods=['GET'])
-def mark_attendance(class_id):
+@app.route('/mark_attendance', methods=['GET'])
+def mark_attendance():
     if 'student_id' not in session:
         flash('Please login to mark attendance.', 'danger')
         return redirect(url_for('login'))
 
+    today = datetime.now().strftime('%Y-%m-%d')
     conn = get_db_connection()
-    attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ? AND class_id = ?', (session['student_id'], class_id)).fetchone()
+    # Check if already marked today
+    already_marked = conn.execute(
+        'SELECT * FROM attendance_log WHERE student_id = ? AND date = ?',
+        (session['student_id'], today)
+    ).fetchone()
+
+    if already_marked:
+        flash('You have already marked attendance for today.', 'warning')
+        conn.close()
+        return redirect(url_for('dashboard'))
+
+    # Mark attendance
+    attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (session['student_id'],)).fetchone()
     if attendance:
         conn.execute('''
             UPDATE attendance
             SET total_classes = total_classes + 1,
                 attended_classes = attended_classes + 1
-            WHERE student_id = ? AND class_id = ?
-        ''', (session['student_id'], class_id))
+            WHERE student_id = ?
+        ''', (session['student_id'],))
     else:
         conn.execute('''
-            INSERT INTO attendance (student_id, class_id, total_classes, attended_classes)
-            VALUES (?, ?, 1, 1)
-        ''', (session['student_id'], class_id))
+            INSERT INTO attendance (student_id, total_classes, attended_classes)
+            VALUES (?, 1, 1)
+        ''', (session['student_id'],))
+    # Log today's attendance
+    conn.execute('INSERT INTO attendance_log (student_id, date) VALUES (?, ?)', (session['student_id'], today))
     conn.commit()
     conn.close()
 
     flash('Attendance marked successfully!', 'success')
     return redirect(url_for('dashboard'))
-
 @app.route('/admit_card')
 def admit_card():
     if 'student_id' not in session:

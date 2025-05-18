@@ -29,6 +29,9 @@
                     {% else %}
                         <div class="text-muted">No messages yet.</div>
                     {% endfor %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary mt-4">
+                        <i class="fa fa-home"></i> Return to Home
+                    </a>
                 </div>
             </div>
         </div>

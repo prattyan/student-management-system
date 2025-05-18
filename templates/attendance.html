@@ -4,7 +4,6 @@
 <div class="container text-center">
     <h1 class="display-4 text-primary mb-4">Attendance Details</h1>
 
-
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card shadow-lg">
@@ -13,9 +12,21 @@
                     <p><strong>Total Classes:</strong> {{ attendance.total_classes }}</p>
                     <p><strong>Attended Classes:</strong> {{ attendance.attended_classes }}</p>
                     <p><strong>Attendance Percentage:</strong> {{ attendance.attendance_percentage }}%</p>
+                    {% if attendance_marked_today %}
+                        <button class="btn btn-secondary mt-3" disabled>
+                            <i class="fa fa-check"></i> Attendance Already Marked
+                        </button>
+                    {% else %}
+                        <a href="{{ url_for('mark_attendance') }}" class="btn btn-primary mt-3">
+                            <i class="fa fa-check"></i> Mark Attendance
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary mt-4">
+        <i class="fa fa-home"></i> Return to Home
+    </a>
 </div>
 {% endblock %}
