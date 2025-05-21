@@ -24,8 +24,9 @@ app.config['SESSION_USE_SIGNER'] = True
 from fpdf import FPDF
 
 def get_ist_now():
-    # IST is UTC+5:30
-    return datetime.utcnow() + timedelta(hours=5, minutes=30)
+    """Get the current time in IST (Indian Standard Time)."""
+    ist = timezone(timedelta(hours=5, minutes=30))
+    return datetime.now(ist)
 
 @app.route('/export_all_admit_cards')
 def export_all_admit_cards():
@@ -565,8 +566,11 @@ def admin_dashboard():
         'second_language_avg': avg_marks['second_language_avg'] if avg_marks and avg_marks['second_language_avg'] is not None else 0
     }
 
-    students = [dict(student) for student in students]
-    return render_template('admin_dashboard.html', students=students, total_students=total_students, avg_attendance=avg_attendance, avg_marks=avg_marks)
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_mobile = any(m in user_agent for m in ['iphone', 'android', 'ipad', 'mobile'])
+
+    template = 'admin_dashboard_mobile.html' if is_mobile else 'admin_dashboard.html'
+    return render_template(template, students=students, total_students=total_students, avg_attendance=avg_attendance, avg_marks=avg_marks)
 @app.route('/')
 def home():
     return redirect(url_for('login'))

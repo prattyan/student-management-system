@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard (Mobile){% endblock %}
+{% block content %}
+<div class="container-fluid px-2">
+    <h3 class="my-3 text-primary text-center"><i class="fa fa-tachometer-alt"></i> Admin Dashboard</h3>
+    <div class="row mb-3 text-center">
+        <div class="col-6 mb-2">
+            <div class="card shadow-sm border-0">
+                <div class="card-body py-2">
+                    <div class="text-muted small">Total Students</div>
+                    <div class="fw-bold fs-4 text-primary">{{ total_students }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 mb-2">
+            <div class="card shadow-sm border-0">
+                <div class="card-body py-2">
+                    <div class="text-muted small">Avg Attendance</div>
+                    <div class="fw-bold fs-5 text-success">{{ avg_attendance | round(2) }}%</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 mb-2">
+            <div class="card shadow-sm border-0">
+                <div class="card-body py-2">
+                    <div class="text-muted small">Avg Marks</div>
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <span class="badge bg-primary">Math: {{ avg_marks.math_avg | round(2) }}</span>
+                        <span class="badge bg-success">Science: {{ avg_marks.science_avg | round(2) }}</span>
+                        <span class="badge bg-warning text-dark">Social: {{ avg_marks.social_science_avg | round(2) }}</span>
+                        <span class="badge bg-info text-dark">English: {{ avg_marks.english_avg | round(2) }}</span>
+                        <span class="badge bg-secondary text-dark">2nd Lang: {{ avg_marks.second_language_avg | round(2) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <h5 class="text-center my-3">Students</h5>
+    <div class="list-group">
+        {% for student in students %}
+        <div class="list-group-item mb-2 rounded shadow-sm">
+            <div class="d-flex align-items-center mb-2">
+                <img src="{{ url_for('static', filename='uploads/' + (student['profile_pic'] if student['profile_pic'] else 'default.png')) }}"
+                     alt="Profile" class="rounded-circle me-2" style="width:40px;height:40px;">
+                <div>
+                    <div class="fw-bold">{{ student['name'] }}</div>
+                    <div class="small text-muted">{{ student['email'] }}</div>
+                </div>
+            </div>
+            <div class="mb-1">
+                <span class="badge {% if student['exam_fee_paid'] %}bg-success{% else %}bg-danger{% endif %}">
+                    {% if student['exam_fee_paid'] %}Paid{% else %}Not Paid{% endif %}
+                </span>
+                <span class="badge {% if student['admit_card_exported'] %}bg-success{% else %}bg-secondary{% endif %}">
+                    Admit Card: {% if student['admit_card_exported'] %}✔{% else %}✗{% endif %}
+                </span>
+                <span class="badge {% if student['profile_exported'] %}bg-success{% else %}bg-secondary{% endif %}">
+                    Profile: {% if student['profile_exported'] %}✔{% else %}✗{% endif %}
+                </span>
+            </div>
+            <div class="small text-muted mb-1">
+                Last Login: {{ student['last_login'] or 'Never' }}<br>
+                IP: {{ student['last_login_ip'] or 'N/A' }}
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <a href="{{ url_for('update_marks', id=student['id']) }}" class="btn btn-warning btn-sm"><i class="fa fa-pen"></i></a>
+                <a href="{{ url_for('update_attendance', id=student['id']) }}" class="btn btn-info btn-sm"><i class="fa fa-calendar-check"></i></a>
+                <a href="{{ url_for('delete_admit_card_pdf', student_id=student['id']) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete admit card PDF for this student?');"><i class="fa fa-id-card"></i></a>
+                <a href="{{ url_for('delete_profile_pdf', student_id=student['id']) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete profile PDF for this student?');"><i class="fa fa-file-pdf"></i></a>
+                <a href="{{ url_for('delete_student', id=student['id']) }}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this student?');"><i class="fa fa-trash"></i></a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

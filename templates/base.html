@@ -105,6 +105,12 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('dashboard') }}"><i class="fa-solid fa-graduation-cap"></i> Student Management</a>
+            {% if session.get('admin') %}
+            <!-- Hamburger for admin sidebar (mobile only) -->
+            <button class="btn btn-outline-light d-lg-none ms-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar">
+                <i class="fa fa-bars"></i>
+            </button>
+            {% endif %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -140,6 +146,10 @@
         </div>
     </nav>
 
+    <!-- Add this button inside the navbar for mobile -->
+    <button class="btn btn-outline-light d-lg-none ms-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar">
+        <i class="fa fa-bars"></i>
+    </button>
     
     <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -159,6 +169,46 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Offcanvas Sidebar for Admin (Mobile Only) -->
+    <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="adminSidebar" aria-labelledby="adminSidebarLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="adminSidebarLabel"><i class="fa-solid fa-graduation-cap me-2"></i> Student Management</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <nav class="nav flex-column px-2">
+                <a class="nav-link text-dark {% if request.endpoint == 'admin_dashboard' %}active bg-primary text-white{% endif %} rounded mb-1" href="{{ url_for('admin_dashboard') }}">
+                    <i class="fa fa-home me-2"></i> Dashboard
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('export_students') }}">
+                    <i class="fa fa-file-excel me-2"></i> Export Students
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('export_attendance') }}">
+                    <i class="fa fa-file-excel me-2"></i> Export Attendance
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('export_all_admit_cards') }}">
+                    <i class="fa fa-id-card me-2"></i> Export All Admit Cards
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('delete_all_admit_cards') }}"
+                    onclick="return confirm('Are you sure you want to delete ALL admit cards?');">
+                    <i class="fa fa-trash me-2"></i> Delete All Admit Cards
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('export_all_profiles') }}">
+                    <i class="fa fa-user me-2"></i> Export All Profiles
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('clear_all_exam_fee_payments') }}"
+                   onclick="return confirm('Are you sure you want to clear ALL exam fee payment records?');">
+                    <i class="fa fa-money-bill-wave me-2"></i> Clear All Exam Fee Payments
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('admin_messages') }}">
+                    <i class="fa fa-envelope me-2"></i> Student Messages
+                </a>
+                <a class="nav-link text-dark rounded mb-1" href="{{ url_for('exam_settings') }}">
+                    <i class="fa fa-cog me-2"></i> Exam Settings
+                </a>
+            </nav>
+        </div>
+    </div>
     
     <footer>
         <p>&copy; 2025 Student Database System. All rights reserved.</p>
