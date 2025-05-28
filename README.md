@@ -6,15 +6,35 @@ A modern, professional, and responsive web-based Student Management System built
 
 ## 🚀 Features
 
-- **Student Registration & Login**
-- **Profile Management** (with profile picture upload)
-- **View Attendance & Marks** (with CGPA calculation)
-- **Password Reset & Change**
-- **Admin Dashboard** with analytics and student management
-- **Export Students & Attendance** to Excel
-- **Responsive UI** with Bootstrap 5
-- **Profile pictures** shown in sidebar and navbar
-- **Modern, professional UI/UX**
+- **Student Registration & Login** (with strong password policy)
+- **Single Active Session:** Only one session per user is allowed; logging in elsewhere logs out previous sessions.
+- **IST Timezone:** All timestamps (login, attendance, messages, etc.) are stored and displayed in IST.
+- **Attendance Management:**
+  - Students submit attendance requests (one per day).
+  - Admin must approve attendance requests for them to count.
+  - Students see "Approval Pending" until admin approval.
+- **Marks Management:** Admin can update marks for all subjects.
+- **Exam Fee Payment:** Online payment with receipt and status.
+- **Admit Card & Profile PDF:** Export and download as PDF (admin and student).
+- **Admin Dashboard:**
+  - View all students, attendance, marks, last login time & IP.
+  - Export/import data (students, attendance, admit cards, profiles).
+  - Analytics with Chart.js (attendance, marks).
+  - Bulk messaging to students.
+  - Attendance requests approval.
+- **Student Dashboard:** View profile, attendance, marks, admit card, exam fee, and contact admin.
+- **Contact Admin:** Messaging system with admin replies.
+- **Mobile-Optimized:** Dedicated mobile admin dashboard and responsive UI.
+- **Security:**
+  - CSRF protection on all forms.
+  - Rate limiting on login.
+  - Secure session cookies.
+  - Audit logging for admin actions.
+- **Professional Polish:**
+  - Modern Bootstrap 5 UI, dark mode support.
+  - Custom error pages (404, etc.).
+  - Favicon, meta tags, About/Help pages.
+
 
 ---
 
@@ -27,6 +47,7 @@ student-database-system/
 ├── students.db
 ├── requirements.txt
 ├── README.md
+├── version.txt
 ├── static/
 │   ├── style.css
 │   ├── js/
@@ -40,8 +61,10 @@ student-database-system/
     ├── base.html
     ├── dashboard.html
     ├── admin_dashboard.html
+    ├── admin_dashboard_mobile.html
     ├── admin_update_marks.html
     ├── admin_update_attendance.html
+    ├── admin_attendance_requests.html
     ├── edit_profile.html
     ├── student_details.html
     ├── attendance.html
@@ -50,7 +73,12 @@ student-database-system/
     ├── register.html
     ├── change_password.html
     ├── reset_password.html
-    └── reset_password_request.html
+    ├── reset_password_request.html
+    ├── pay_exam_fees.html
+    ├── contact_admin.html
+    ├── admin_messages.html
+    ├── exam_settings.html
+    └── 404.html
 ```
 
 ---
@@ -59,7 +87,7 @@ student-database-system/
 
 1. **Clone the repository**
     ```sh
-    git clone https://github.com/yourusername/student-database-system.git
+    git clone https://github.com/prattyan/student-database-system.git
     cd student-database-system
     ```
 
@@ -76,7 +104,7 @@ student-database-system/
     ```
     If `requirements.txt` is missing, install manually:
     ```sh
-    pip install flask werkzeug pandas authlib pymongo
+    pip install flask werkzeug pandas authlib fpdf
     ```
 
 4. **Run the application**
@@ -85,8 +113,7 @@ student-database-system/
     ```
 
 5. **Access the app**
-    - Open your browser and go to [https://prattyan.pythonanywhere.com/](https://prattyan.pythonanywhere.com/)
-    
+    - Open your browser and go to [http://localhost:5000/](http://localhost:5000/)
 
 ---
 
@@ -117,6 +144,24 @@ student-database-system/
 - Sidebar navigation for both admin and students.
 - Profile picture and name shown in sidebar and navbar.
 - All forms use floating labels and validation.
+- Dedicated mobile admin dashboard.
+
+---
+
+## 🔒 Security
+
+- CSRF protection on all forms.
+- Rate limiting on login.
+- Secure session cookies.
+- Only one active session per user.
+- Audit logging for admin actions.
+
+---
+
+## 📊 Analytics
+
+- Admin dashboard includes attendance and marks analytics with Chart.js.
+- Attendance approval workflow with pending requests.
 
 ---
 

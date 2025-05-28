@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Attendance Requests{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-primary">Pending Attendance Requests</h2>
+    {% if requests %}
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Student Name</th>
+                <th>Roll Number</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Approve</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in requests %}
+            <tr>
+                <td>{{ req['name'] }}</td>
+                <td>{{ req['roll_number'] }}</td>
+                <td>{{ req['date'] }}</td>
+                <td>{{ req['status'] }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('approve_attendance', log_id=req['id']) }}">
+                        <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">No pending attendance requests.</div>
+    {% endif %}
+</div>
+{% endblock %}

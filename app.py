@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
+import uuid
 
 app = Flask(__name__)
 app.secret_key = 'secret_key'
@@ -393,6 +394,15 @@ def init_db():
             )
         ''')
         conn.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',  -- 'pending' or 'approved'
+                FOREIGN KEY (student_id) REFERENCES students (id)
+            )
+        ''')
+        conn.execute('''
             CREATE TABLE IF NOT EXISTS exam_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 exam_center TEXT DEFAULT 'Main Campus',
@@ -500,6 +510,21 @@ def admin_messages():
     messages = conn.execute('SELECT * FROM messages ORDER BY created_at DESC').fetchall()
     conn.close()
     return render_template('admin_messages.html', messages=messages)
+@app.route('/admin_attendance_requests')
+def admin_attendance_requests():
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('login'))
+    conn = get_db_connection()
+    requests = conn.execute('''
+        SELECT attendance_log.id, students.name, students.roll_number, attendance_log.date, attendance_log.status
+        FROM attendance_log
+        JOIN students ON attendance_log.student_id = students.id
+        WHERE attendance_log.status = 'pending'
+        ORDER BY attendance_log.date DESC
+    ''').fetchall()
+    conn.close()
+    return render_template('admin_attendance_requests.html', requests=requests)
 @app.route('/update_marks/<int:id>', methods=['GET', 'POST'])
 def update_marks(id):
     conn = get_db_connection()
@@ -603,8 +628,6 @@ def register():
 
     return render_template('register.html')
 
-import uuid
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -612,13 +635,13 @@ def login():
         password = request.form['password']
         conn = get_db_connection()
         student = conn.execute('SELECT * FROM students WHERE email = ?', (email,)).fetchone()
-
         if student and check_password_hash(student['password'], password):
-            login_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
-            login_ip = request.remote_addr
-            conn.execute('UPDATE students SET last_login = ?, last_login_ip = ? WHERE id = ?', (login_time, login_ip, student['id']))
+            # Generate a new session token
+            session_token = str(uuid.uuid4())
+            expires_at = int(time.time()) + 120
+            conn.execute('UPDATE students SET session_token = ? WHERE id = ?', (session_token, student['id']))
             conn.commit()
-            # ...existing session logic...
+            # Set session variables
             session['student_id'] = student['id']
             session['student_name'] = student['name']
             session['student_email'] = student['email']
@@ -627,6 +650,13 @@ def login():
             session['student_department'] = student['department']
             session['student_profile_pic'] = student['profile_pic'] if student['profile_pic'] else 'default.png'
             session['admin'] = (student['email'] == 'admin@example.com')
+            session['session_token'] = session_token
+            session['expires_at'] = expires_at
+            # Update last login time and IP
+            login_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+            login_ip = request.remote_addr
+            conn.execute('UPDATE students SET last_login = ?, last_login_ip = ? WHERE id = ?', (login_time, login_ip, student['id']))
+            conn.commit()
             conn.close()
             if session['admin']:
                 flash('Admin login successful!', 'success')
@@ -639,7 +669,6 @@ def login():
             flash('Invalid email or password.', 'danger')
     return render_template('login.html')
 def is_session_valid():
-    # If admin, always valid
     if session.get('admin'):
         return True
     if 'student_id' not in session or 'session_token' not in session:
@@ -658,7 +687,8 @@ def is_session_valid():
 
 @app.route('/dashboard')
 def dashboard():
-    if 'student_id' not in session:
+    if not is_session_valid():
+        flash('Session expired or logged in elsewhere.', 'danger')
         return redirect(url_for('login'))
 
     conn = get_db_connection()
@@ -1014,6 +1044,13 @@ def export_students():
     flash('Student data exported successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/export_students_csv')
+def export_students_csv():
+    conn = get_db_connection()
+    students = conn.execute('SELECT * FROM students').fetchall()
+    conn.close()
+    # Generate CSV and return as response
+
 @app.route('/export_attendance')
 def export_attendance():
     if 'admin' not in session or not session['admin']:
@@ -1111,38 +1148,23 @@ def mark_attendance():
 
     today = get_ist_now().strftime('%Y-%m-%d')
     conn = get_db_connection()
-    # Check if already marked today
     already_marked = conn.execute(
         'SELECT * FROM attendance_log WHERE student_id = ? AND date = ?',
         (session['student_id'], today)
     ).fetchone()
 
     if already_marked:
-        flash('You have already marked attendance for today.', 'warning')
+        flash('You have already requested attendance for today.', 'warning')
         conn.close()
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('attendance'))
 
-    # Mark attendance
-    attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (session['student_id'],)).fetchone()
-    if attendance:
-        conn.execute('''
-            UPDATE attendance
-            SET total_classes = total_classes + 1,
-                attended_classes = attended_classes + 1
-            WHERE student_id = ?
-        ''', (session['student_id'],))
-    else:
-        conn.execute('''
-            INSERT INTO attendance (student_id, total_classes, attended_classes)
-            VALUES (?, 1, 1)
-        ''', (session['student_id'],))
-    # Log today's attendance
-    conn.execute('INSERT INTO attendance_log (student_id, date) VALUES (?, ?)', (session['student_id'], today))
+    # Insert pending attendance request
+    conn.execute('INSERT INTO attendance_log (student_id, date, status) VALUES (?, ?, ?)', (session['student_id'], today, 'pending'))
     conn.commit()
     conn.close()
 
-    flash('Attendance marked successfully!', 'success')
-    return redirect(url_for('dashboard'))
+    flash('Attendance request submitted. Awaiting admin approval.', 'info')
+    return redirect(url_for('attendance'))
 @app.route('/admit_card')
 def admit_card():
     if 'student_id' not in session:
@@ -1268,6 +1290,38 @@ def clear_session():
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
+
+@app.route('/approve_attendance/<int:log_id>', methods=['POST'])
+def approve_attendance(log_id):
+    if 'admin' not in session or not session['admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('login'))
+    conn = get_db_connection()
+    # Get the log entry
+    log = conn.execute('SELECT * FROM attendance_log WHERE id = ?', (log_id,)).fetchone()
+    if log and log['status'] == 'pending':
+        # Update attendance table
+        attendance = conn.execute('SELECT * FROM attendance WHERE student_id = ?', (log['student_id'],)).fetchone()
+        if attendance:
+            conn.execute('''
+                UPDATE attendance
+                SET total_classes = total_classes + 1,
+                    attended_classes = attended_classes + 1
+                WHERE student_id = ?
+            ''', (log['student_id'],))
+        else:
+            conn.execute('''
+                INSERT INTO attendance (student_id, total_classes, attended_classes)
+                VALUES (?, 1, 1)
+            ''', (log['student_id'],))
+        # Mark as approved
+        conn.execute('UPDATE attendance_log SET status = ? WHERE id = ?', ('approved', log_id))
+        conn.commit()
+        flash('Attendance approved.', 'success')
+    else:
+        flash('Invalid or already approved request.', 'danger')
+    conn.close()
+    return redirect(url_for('admin_attendance_requests'))
 
 if __name__ == '__main__':
     init_db()
