@@ -433,6 +433,23 @@ def init_db():
             )
         ''')
 
+        admin_email = 'admin@example.com'
+        admin_exists = conn.execute('SELECT * FROM students WHERE email = ?', (admin_email,)).fetchone()
+        if not admin_exists:
+            from werkzeug.security import generate_password_hash
+            conn.execute('''
+                INSERT INTO students (name, email, password, phone, roll_number, department)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                'Admin',
+                admin_email,
+                generate_password_hash('admin123'),  # Default password, change after first login
+                '',
+                '',
+                'Administration'
+            ))
+        conn.commit()
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
