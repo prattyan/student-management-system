@@ -41,7 +41,6 @@
             color: #fff;
         }
         .content-area {
-            margin-left: 220px;
             padding: 2rem 1rem;
         }
         @media (max-width: 991.98px) {
@@ -63,7 +62,8 @@
 <body>
     
     {% if session.get('admin') %}
-    <div class="sidebar position-fixed d-none d-lg-block bg-dark" style="width:220px; min-height:100vh;">
+    <div class="sidebar-hover-zone d-none d-lg-block"></div>
+    <div class="sidebar auto-hide position-fixed d-none d-lg-block bg-dark" style="width:220px; min-height:100vh;">
         
         <a class="navbar-brand mb-4 px-3 py-2 d-block text-white fw-bold" href="#">
             <i class="fa-solid fa-graduation-cap me-2"></i> Student Management
@@ -239,5 +239,25 @@
     })();
     </script>
     {% endif %}
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    var sidebar = document.querySelector('.sidebar.auto-hide');
+    var hoverZone = document.querySelector('.sidebar-hover-zone');
+    if (sidebar && hoverZone) {
+        hoverZone.addEventListener('mouseenter', function() {
+            sidebar.classList.add('sidebar-visible');
+        });
+        sidebar.addEventListener('mouseenter', function() {
+            sidebar.classList.add('sidebar-visible');
+        });
+        sidebar.addEventListener('mouseleave', function() {
+            sidebar.classList.remove('sidebar-visible');
+        });
+        hoverZone.addEventListener('mouseleave', function() {
+            sidebar.classList.remove('sidebar-visible');
+        });
+    }
+});
+</script>
 </body>
 </html>
