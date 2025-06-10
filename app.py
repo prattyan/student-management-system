@@ -1334,6 +1334,7 @@ def approve_attendance(log_id):
     conn.close()
     return redirect(url_for('admin_attendance_requests'))
 
+
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5000)
